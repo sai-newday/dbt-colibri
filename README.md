@@ -76,6 +76,78 @@ colibri generate [OPTIONS]
 - `--help`: Show help message
 - `--light`: For very big dbt projects, excludes attributes like compiled SQL and returns smaller HTML file.
 
+#### `colibri blast-radius`
+
+Analyze the blast radius (downstream impact) of changes to specific columns in a dbt model.
+
+This command identifies all downstream models and columns that would be affected by changes to the specified columns in your source model. Perfect for PR reviews and impact analysis.
+
+```bash
+colibri blast-radius [OPTIONS]
+```
+
+**Options:**
+- `--model`: Model to analyze (e.g., `model.project.customers`) [required]
+- `--columns`: Comma-separated column names (e.g., `customer_id,email`) [required]
+- `--manifest`: Path to dbt manifest.json (default: `target/manifest.json`)
+- `--catalog`: Path to dbt catalog.json (default: `target/catalog.json`)
+- `--format`: Output format: `json` or `text` (default: `json`)
+- `--max-depth`: Maximum depth to traverse (default: unlimited)
+- `--debug`: Enable debug-level logging
+- `--help`: Show help message
+
+**Examples:**
+
+```bash
+# Analyze impact of customer_id column changes
+colibri blast-radius --model model.analytics.customers --columns customer_id
+
+# Analyze multiple columns with text output
+colibri blast-radius --model model.analytics.orders --columns order_id,customer_id --format text
+
+# Limit analysis to direct impact only (depth 1)
+colibri blast-radius --model model.analytics.customers --columns customer_id --max-depth 1
+
+# Output as JSON for CI/CD pipelines
+colibri blast-radius --model model.analytics.customers --columns email --format json
+```
+
+**Output Format (JSON):**
+
+```json
+{
+  "source_model": "model.analytics.customers",
+  "source_columns": ["customer_id"],
+  "affected_items": [
+    {
+      "model": "model.analytics.orders",
+      "columns": ["customer_id"],
+      "depth": 1,
+      "paths": [["model.analytics.customers", "model.analytics.orders"]]
+    },
+    {
+      "model": "model.analytics.dashboards",
+      "columns": ["customer_id"],
+      "depth": 2,
+      "paths": [["model.analytics.customers", "model.analytics.orders", "model.analytics.dashboards"]]
+    }
+  ],
+  "summary": {
+    "affected_models_count": 2,
+    "affected_columns_count": 2,
+    "max_depth": 2,
+    "total_downstream_items": 2
+  }
+}
+```
+
+**Use Cases:**
+
+- **PR Impact Analysis**: Check what models will be affected by a schema change before merging
+- **Change Risk Assessment**: Identify critical downstream dependencies
+- **Documentation**: Understand data flow and model relationships
+- **Refactoring**: Plan column deprecation or renaming with full visibility of impacts
+
 ### Output Files
 
 - **`colibri-manifest.json`**: Lineage data
