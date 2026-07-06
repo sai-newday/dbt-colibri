@@ -89,7 +89,7 @@ class BlastRadiusAnalyzer:
     def find_blast_radius(
         self,
         model_id: str,
-        columns: List[str],
+        columns: Optional[List[str]],
         max_depth: Optional[int] = None,
     ) -> Dict:
         """
@@ -109,20 +109,19 @@ class BlastRadiusAnalyzer:
                 "summary": {...}
             }
         """
-        if not columns:
-            self.logger.warning("No columns provided for blast radius analysis")
-            return self._empty_result(model_id, columns)
-
         # Resolve model name to full ID
         resolved_model_id = self._resolve_model_id(model_id)
         if not resolved_model_id:
             self.logger.warning(f"Model '{model_id}' not found in lineage data")
-            return self._empty_result(model_id, columns)
+            return self._empty_result(model_id, columns or [])
 
         # Validate model exists in children map
         if resolved_model_id not in self.children_map:
             self.logger.warning(f"Model {resolved_model_id} has no downstream lineage")
-            return self._empty_result(resolved_model_id, columns)
+            return self._empty_result(resolved_model_id, columns or [])
+
+        if not columns:
+            return self._find_model_level_blast_radius(resolved_model_id, max_depth)
 
         # BFS traversal to find all downstream impacts
         affected = {}  # model_id -> {columns: set, depth: int, paths: list}
@@ -181,6 +180,53 @@ class BlastRadiusAnalyzer:
 
         # Format and return results
         return self._format_results(resolved_model_id, columns, affected)
+
+    def _find_model_level_blast_radius(
+        self,
+        model_id: str,
+        max_depth: Optional[int] = None,
+    ) -> Dict:
+        """Find downstream models without column-level detail."""
+        affected = {}
+        visited_edges: Set[Tuple[str, str]] = set()
+
+        queue = deque([(model_id, 0, [model_id])])
+
+        while queue:
+            current_model, depth, path = queue.popleft()
+
+            if max_depth is not None and depth >= max_depth:
+                continue
+
+            if current_model not in self.children_map:
+                continue
+
+            downstream_models = set()
+            for children in self.children_map[current_model].values():
+                for child_mapping in children:
+                    child_model = child_mapping.get("model") or child_mapping.get("dbt_node")
+                    if child_model:
+                        downstream_models.add(child_model)
+
+            for child_model in downstream_models:
+                edge_key = (current_model, child_model)
+                if edge_key in visited_edges:
+                    continue
+
+                visited_edges.add(edge_key)
+
+                if child_model not in affected:
+                    affected[child_model] = {
+                        "columns": set(),
+                        "depth": depth + 1,
+                        "paths": [],
+                    }
+
+                new_path = path + [child_model]
+                affected[child_model]["paths"].append(new_path)
+                queue.append((child_model, depth + 1, new_path))
+
+        return self._format_results(model_id, [], affected)
 
     def _empty_result(self, model_id: str, columns: List[str]) -> Dict:
         """Return an empty result structure."""
@@ -254,7 +300,10 @@ class BlastRadiusAnalyzer:
         
         lines = []
         lines.append(f"Blast Radius for: {model_id}")
-        lines.append(f"Columns: {', '.join(result['source_columns'])}")
+        if result["source_columns"]:
+            lines.append(f"Columns: {', '.join(result['source_columns'])}")
+        else:
+            lines.append("Columns: (model-level lineage)")
         lines.append("=" * 80)
         lines.append("")
 
@@ -273,18 +322,21 @@ class BlastRadiusAnalyzer:
 
         for depth in sorted(by_depth.keys()):
             if depth == 1:
-                lines.append("📍 Depth 1 (direct impact):")
+                lines.append("Depth 1 (direct impact):")
             else:
-                lines.append(f"📍 Depth {depth} (indirect impact):")
+                lines.append(f"Depth {depth} (indirect impact):")
 
             for item in by_depth[depth]:
                 lines.append(f"  ├─ {item['model']}")
-                for col in item["columns"]:
-                    # Format join marker columns with user-friendly label
-                    if col == "__colibri_join__":
-                        lines.append(f"  │  └─ (used as part of join condition)")
-                    else:
-                        lines.append(f"  │  └─ {col}")
+                if item["columns"]:
+                    for col in item["columns"]:
+                        # Format join marker columns with user-friendly label
+                        if col == "__colibri_join__":
+                            lines.append(f"  │  └─ (used as part of join condition)")
+                        else:
+                            lines.append(f"  │  └─ {col}")
+                else:
+                    lines.append("  │  └─ model-level impact")
 
             lines.append("")
 

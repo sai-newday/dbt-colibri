@@ -130,8 +130,8 @@ def generate_report(output_dir, manifest, catalog, debug, light):
 @click.option(
     "--columns",
     type=str,
-    required=True,
-    help="Comma-separated list of column names (e.g., customer_id,email)",
+    required=False,
+    help="Comma-separated list of column names (e.g., customer_id,email). Omit for model-level lineage.",
 )
 @click.option(
     "--manifest",
@@ -193,10 +193,13 @@ def blast_radius_cmd(model, columns, manifest, catalog, format, max_depth, debug
         logger.info("Extracting lineage data...")
         lineage_data = extractor.extract_project_lineage()
 
-        # Parse columns
-        column_list = [col.strip() for col in columns.split(",")]
+        # Parse columns when provided; otherwise run model-level lineage.
+        column_list = [col.strip() for col in columns.split(",") if col.strip()] if columns else []
 
-        logger.info(f"Analyzing blast radius for {model} [{', '.join(column_list)}]...")
+        if column_list:
+            logger.info(f"Analyzing blast radius for {model} [{', '.join(column_list)}]...")
+        else:
+            logger.info(f"Analyzing model-level blast radius for {model}...")
         analyzer = BlastRadiusAnalyzer(lineage_data, logger=logger)
         result = analyzer.find_blast_radius(model, column_list, max_depth=max_depth)
 

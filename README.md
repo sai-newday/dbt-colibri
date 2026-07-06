@@ -88,7 +88,7 @@ colibri blast-radius [OPTIONS]
 
 **Options:**
 - `--model`: Model to analyze (e.g., `model.project.customers`) [required]
-- `--columns`: Comma-separated column names (e.g., `customer_id,email`) [required]
+- `--columns`: Comma-separated column names (e.g., `customer_id,email`). Omit for model-level lineage.
 - `--manifest`: Path to dbt manifest.json (default: `target/manifest.json`)
 - `--catalog`: Path to dbt catalog.json (default: `target/catalog.json`)
 - `--format`: Output format: `json` or `text` (default: `json`)

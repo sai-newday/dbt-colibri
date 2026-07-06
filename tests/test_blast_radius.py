@@ -176,8 +176,13 @@ class TestBlastRadiusAnalyzer:
         """Test with empty column list."""
         result = analyzer.find_blast_radius("model.analytics.customers", [])
 
-        assert result["summary"]["affected_models_count"] == 0
-        assert len(result["affected_items"]) == 0
+        assert result["summary"]["affected_models_count"] == 4
+        assert result["summary"]["affected_columns_count"] == 0
+        affected_models = {item["model"] for item in result["affected_items"]}
+        assert "model.analytics.orders" in affected_models
+        assert "model.analytics.order_metrics" in affected_models
+        assert "model.analytics.dashboards" in affected_models
+        assert "model.analytics.reporting" in affected_models
 
     def test_max_depth_limit(self, analyzer):
         """Test max_depth parameter limits traversal."""
@@ -247,6 +252,13 @@ class TestBlastRadiusAnalyzer:
 
         assert "model.analytics.reporting" in text
         assert "No downstream impact" in text
+
+    def test_get_blast_radius_text_model_level(self, analyzer):
+        """Test text output when columns are omitted."""
+        text = analyzer.get_blast_radius_text("model.analytics.customers", [])
+
+        assert "Columns: (model-level lineage)" in text
+        assert "model-level impact" in text
 
     def test_complex_lineage_path(self, analyzer):
         """Test that paths are correctly tracked through multiple levels."""
