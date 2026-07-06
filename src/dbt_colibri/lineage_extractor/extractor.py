@@ -252,7 +252,7 @@ class DbtColumnLineageExtractor:
                 relation_name = parsing_utils.normalize_table_relation_name(node["relation_name"])
 
             # Start with manifest node info
-            merged[relation_name] = {
+            node_info = {
                 "unique_id": node_id,
                 "database": node.get("database"),
                 "schema": node.get("schema"),
@@ -263,11 +263,74 @@ class DbtColumnLineageExtractor:
 
             # Add richer column info from catalog if available
             if node_id in self.catalog.get("nodes", {}):
-                merged[relation_name]["columns"] = self.catalog["nodes"][node_id]["columns"]
+                node_info["columns"] = self.catalog["nodes"][node_id]["columns"]
             elif node_id in self.catalog.get("sources", {}):
-                merged[relation_name]["columns"] = self.catalog["sources"][node_id]["columns"]
+                node_info["columns"] = self.catalog["sources"][node_id]["columns"]
+
+            self._register_relation_mapping(merged, relation_name, node_info)
+
+            # Support merged-artifact aliases produced by merge_dbt_artifacts.py.
+            for alias in node.get("x_colibri_relation_aliases") or []:
+                normalized_alias = parsing_utils.normalize_table_relation_name(alias)
+                self._register_relation_mapping(merged, normalized_alias, node_info)
+
+            catalog_entry = (
+                self.catalog.get("nodes", {}).get(node_id)
+                or self.catalog.get("sources", {}).get(node_id)
+                or {}
+            )
+            for alias in catalog_entry.get("x_colibri_table_aliases") or []:
+                alias_db = (alias.get("database") or "").strip()
+                alias_schema = (alias.get("schema") or "").strip()
+                alias_name = (alias.get("name") or "").strip()
+                if not (alias_db and alias_schema and alias_name):
+                    continue
+                normalized_alias = parsing_utils.normalize_table_relation_name(
+                    f"{alias_db}.{alias_schema}.{alias_name}"
+                )
+                self._register_relation_mapping(merged, normalized_alias, node_info)
 
         return merged
+
+    def _register_relation_mapping(self, mapping, relation_name, node_info):
+        """Register a relation mapping, avoiding ambiguous cross-node alias collisions."""
+        if not relation_name:
+            return
+
+        existing = mapping.get(relation_name)
+        if existing and existing.get("unique_id") != node_info.get("unique_id"):
+            def _priority(info):
+                rt = (info.get("resource_type") or "").lower()
+                if rt == "source":
+                    return 3
+                if rt in {"model", "snapshot"}:
+                    return 2
+                if rt == "seed":
+                    return 1
+                return 0
+
+            existing_priority = _priority(existing)
+            incoming_priority = _priority(node_info)
+
+            if incoming_priority > existing_priority:
+                self.logger.warning(
+                    "Relation alias collision for %s between %s and %s. Replacing with higher-priority mapping.",
+                    relation_name,
+                    existing.get("unique_id"),
+                    node_info.get("unique_id"),
+                )
+                mapping[relation_name] = node_info
+                return
+
+            self.logger.warning(
+                "Relation alias collision for %s between %s and %s. Keeping first mapping.",
+                relation_name,
+                existing.get("unique_id"),
+                node_info.get("unique_id"),
+            )
+            return
+
+        mapping[relation_name] = node_info
 
     def build_table_to_node(self):
         """
@@ -300,16 +363,18 @@ class DbtColumnLineageExtractor:
             catalog = self.catalog
         schema_dict = {}
 
-        def add_to_schema_dict(node):
-            dbt_node = DBTNodeCatalog(node)
-            db_name, schema_name, table_name = dbt_node.database, dbt_node.schema, dbt_node.name
-
+        def set_table_columns(db_name, schema_name, table_name, col_types):
             if db_name not in schema_dict:
                 schema_dict[db_name] = {}
             if schema_name not in schema_dict[db_name]:
                 schema_dict[db_name][schema_name] = {}
             if table_name not in schema_dict[db_name][schema_name]:
                 schema_dict[db_name][schema_name][table_name] = {}
+            schema_dict[db_name][schema_name][table_name].update(col_types)
+
+        def add_to_schema_dict(node):
+            dbt_node = DBTNodeCatalog(node)
+            db_name, schema_name, table_name = dbt_node.database, dbt_node.schema, dbt_node.name
 
             col_types = dbt_node.get_column_types()
 
@@ -326,7 +391,15 @@ class DbtColumnLineageExtractor:
                         wrapped[col_name] = col_type
                 col_types = wrapped
 
-            schema_dict[db_name][schema_name][table_name].update(col_types)
+            set_table_columns(db_name, schema_name, table_name, col_types)
+
+            # Support merged-artifact alias table names produced by merge script.
+            for alias in node.get("x_colibri_table_aliases") or []:
+                alias_db = (alias.get("database") or "").strip()
+                alias_schema = (alias.get("schema") or "").strip()
+                alias_name = (alias.get("name") or "").strip()
+                if alias_db and alias_schema and alias_name:
+                    set_table_columns(alias_db, alias_schema, alias_name, col_types)
 
         for node in catalog.get("nodes", {}).values():
             add_to_schema_dict(node)

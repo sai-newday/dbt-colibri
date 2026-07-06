@@ -381,3 +381,42 @@ class TestBlastRadiusEdgeCases:
 
         assert result["summary"]["affected_models_count"] == 0
         assert result["source_model"] == "raw_customers"
+
+    def test_column_level_does_not_expand_with_model_children(self):
+        """Column mode should remain strict and not add model-level downstream models."""
+        lineage = {
+            "lineage": {
+                "children": {
+                    "source.pkg.raw.raw_customers": {
+                        "first_name": [
+                            {"model": "model.pkg.stg_customers", "column": "first_name"}
+                        ]
+                    },
+                    "model.pkg.stg_customers": {
+                        "first_name": [
+                            {"model": "model.pkg.customers", "column": "first_name"}
+                        ]
+                    },
+                },
+                "parents": {},
+            },
+            "model_children": {
+                "source.pkg.raw.raw_customers": ["model.pkg.stg_customers"],
+                "model.pkg.stg_customers": ["model.pkg.customers"],
+                "model.pkg.customers": ["model.other.public_customers"],
+                "model.other.public_customers": ["model.other.rollup_customers"],
+                "model.other.rollup_customers": [],
+            },
+        }
+
+        analyzer = BlastRadiusAnalyzer(lineage)
+        result = analyzer.find_blast_radius(
+            "source.pkg.raw.raw_customers",
+            ["first_name"],
+        )
+
+        affected_models = {item["model"] for item in result["affected_items"]}
+        assert "model.pkg.stg_customers" in affected_models
+        assert "model.pkg.customers" in affected_models
+        assert "model.other.public_customers" not in affected_models
+        assert "model.other.rollup_customers" not in affected_models

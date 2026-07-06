@@ -202,6 +202,138 @@ def test_nodes_with_columns(dbt_valid_test_data_dir):
         assert isinstance(node_info["columns"], dict)
 
 
+def test_nodes_with_columns_supports_relation_aliases(tmp_path):
+    """Merged artifact relation aliases should map to the same unique_id."""
+    manifest_path = tmp_path / "manifest.json"
+    catalog_path = tmp_path / "catalog.json"
+
+    manifest_data = {
+        "metadata": {"adapter_type": "duckdb"},
+        "nodes": {
+            "model.jaffleshop.public_customers": {
+                "unique_id": "model.jaffleshop.public_customers",
+                "resource_type": "model",
+                "database": "jaffleshop",
+                "schema": "main",
+                "name": "public_customers",
+                "relation_name": '"jaffleshop"."main"."public_customers"',
+                "compiled_code": "select 1 as customer_id",
+                "columns": {"customer_id": {}},
+                "config": {"materialized": "view"},
+                "x_colibri_relation_aliases": ['"baffleshop"."main"."public_customers"'],
+            }
+        },
+        "sources": {},
+        "parent_map": {},
+        "child_map": {},
+    }
+
+    catalog_data = {
+        "nodes": {
+            "model.jaffleshop.public_customers": {
+                "unique_id": "model.jaffleshop.public_customers",
+                "metadata": {
+                    "database": "jaffleshop",
+                    "schema": "main",
+                    "name": "public_customers",
+                    "type": "VIEW",
+                },
+                "columns": {
+                    "customer_id": {"type": "INTEGER"},
+                    "first_name": {"type": "VARCHAR"},
+                },
+                "x_colibri_table_aliases": [
+                    {"database": "baffleshop", "schema": "main", "name": "public_customers"}
+                ],
+            }
+        },
+        "sources": {},
+    }
+
+    manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+    catalog_path.write_text(json.dumps(catalog_data), encoding="utf-8")
+
+    extractor = DbtColumnLineageExtractor(
+        manifest_path=str(manifest_path),
+        catalog_path=str(catalog_path),
+    )
+
+    assert "jaffleshop.main.public_customers" in extractor.nodes_with_columns
+    assert "baffleshop.main.public_customers" in extractor.nodes_with_columns
+    assert (
+        extractor.nodes_with_columns["baffleshop.main.public_customers"]["unique_id"]
+        == "model.jaffleshop.public_customers"
+    )
+
+
+def test_schema_dict_supports_table_aliases(tmp_path):
+    """Schema dict should expose alias table names for SQL qualification."""
+    manifest_path = tmp_path / "manifest.json"
+    catalog_path = tmp_path / "catalog.json"
+
+    manifest_data = {
+        "metadata": {"adapter_type": "duckdb"},
+        "nodes": {
+            "model.jaffleshop.public_customers": {
+                "unique_id": "model.jaffleshop.public_customers",
+                "resource_type": "model",
+                "database": "jaffleshop",
+                "schema": "main",
+                "name": "public_customers",
+                "relation_name": '"jaffleshop"."main"."public_customers"',
+                "compiled_code": "select 1 as customer_id",
+                "columns": {"customer_id": {}},
+                "config": {"materialized": "view"},
+            }
+        },
+        "sources": {},
+        "parent_map": {},
+        "child_map": {},
+    }
+
+    catalog_data = {
+        "nodes": {
+            "model.jaffleshop.public_customers": {
+                "unique_id": "model.jaffleshop.public_customers",
+                "metadata": {
+                    "database": "jaffleshop",
+                    "schema": "main",
+                    "name": "public_customers",
+                    "type": "VIEW",
+                },
+                "columns": {
+                    "customer_id": {"type": "INTEGER"},
+                    "first_name": {"type": "VARCHAR"},
+                },
+                "x_colibri_table_aliases": [
+                    {"database": "baffleshop", "schema": "main", "name": "public_customers"}
+                ],
+            }
+        },
+        "sources": {},
+    }
+
+    manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+    catalog_path.write_text(json.dumps(catalog_data), encoding="utf-8")
+
+    extractor = DbtColumnLineageExtractor(
+        manifest_path=str(manifest_path),
+        catalog_path=str(catalog_path),
+    )
+
+    assert "jaffleshop" in extractor.schema_dict
+    assert "main" in extractor.schema_dict["jaffleshop"]
+    assert "public_customers" in extractor.schema_dict["jaffleshop"]["main"]
+
+    assert "baffleshop" in extractor.schema_dict
+    assert "main" in extractor.schema_dict["baffleshop"]
+    assert "public_customers" in extractor.schema_dict["baffleshop"]["main"]
+    assert (
+        extractor.schema_dict["baffleshop"]["main"]["public_customers"]["first_name"]
+        == "VARCHAR"
+    )
+
+
 def test_get_list_of_columns(dbt_valid_test_data_dir, caplog):
     """Test retrieving columns for a dbt node."""
     if dbt_valid_test_data_dir is None:

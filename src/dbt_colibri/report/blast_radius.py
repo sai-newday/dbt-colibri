@@ -31,6 +31,7 @@ class BlastRadiusAnalyzer:
         self.lineage_data = lineage_data
         self.logger = logger or logging.getLogger("colibri.blast_radius")
         self.children_map = lineage_data.get("lineage", {}).get("children", {})
+        self.parents_map = lineage_data.get("lineage", {}).get("parents", {})
         self.model_children_map = lineage_data.get("model_children", {})
         self.all_model_ids = self._build_model_index()
 
@@ -169,6 +170,110 @@ class BlastRadiusAnalyzer:
 
         # Format and return results
         return self._format_results(resolved_model_id, columns, affected)
+
+    def _expand_column_results_with_gui_traceability(
+        self,
+        source_model: str,
+        source_columns: List[str],
+        affected: Dict,
+        max_depth: Optional[int] = None,
+    ) -> Dict:
+        """Extend column impacts with GUI-style dependency/parent inference.
+
+        Existing entries keep strict column mappings. Newly discovered downstream
+        models receive inferred impacted columns when parent mappings are known;
+        otherwise they are recorded as model-level impact only.
+        """
+        if not affected:
+            return affected
+
+        impacted_columns_by_model: Dict[str, Set[str]] = {
+            source_model: set(source_columns)
+        }
+        for model, data in affected.items():
+            impacted_columns_by_model.setdefault(model, set()).update(data.get("columns", set()))
+
+        queue = deque()
+        visited_edges: Set[Tuple[str, str]] = set()
+
+        queue.append((source_model, 0, [source_model]))
+
+        # Seed traversal with known paths so we keep shortest path information
+        # from strict column traversal.
+        for model, model_data in affected.items():
+            for path in model_data.get("paths", []):
+                if path:
+                    queue.append((model, len(path) - 1, path))
+
+        while queue:
+            current_node, depth, path = queue.popleft()
+
+            if max_depth is not None and depth >= max_depth:
+                continue
+
+            for child_node in self.model_children_map.get(current_node, []):
+                edge_key = (current_node, child_node)
+                if edge_key in visited_edges:
+                    continue
+
+                visited_edges.add(edge_key)
+
+                next_path = path + [child_node]
+                next_depth = depth + 1
+                queue.append((child_node, next_depth, next_path))
+
+                if not child_node.startswith("model.") or child_node == source_model:
+                    continue
+
+                inferred_columns = self._infer_child_columns_from_parents(
+                    parent_model=current_node,
+                    parent_impacted_columns=impacted_columns_by_model.get(current_node, set()),
+                    child_model=child_node,
+                )
+
+                if child_node not in affected:
+                    affected[child_node] = {
+                        "columns": set(inferred_columns),
+                        "depth": next_depth,
+                        "paths": [next_path],
+                    }
+                    impacted_columns_by_model.setdefault(child_node, set()).update(inferred_columns)
+                    continue
+
+                affected[child_node]["depth"] = min(affected[child_node]["depth"], next_depth)
+                if next_path not in affected[child_node]["paths"]:
+                    affected[child_node]["paths"].append(next_path)
+                if inferred_columns:
+                    affected[child_node]["columns"].update(inferred_columns)
+                    impacted_columns_by_model.setdefault(child_node, set()).update(inferred_columns)
+
+        return affected
+
+    def _infer_child_columns_from_parents(
+        self,
+        parent_model: str,
+        parent_impacted_columns: Set[str],
+        child_model: str,
+    ) -> Set[str]:
+        """Infer impacted child columns from parent mappings for GUI-like traceability."""
+        inferred: Set[str] = set()
+        child_parent_map = self.parents_map.get(child_model, {})
+
+        for child_col, parent_refs in child_parent_map.items():
+            for parent_ref in parent_refs:
+                ref_model = parent_ref.get("model") or parent_ref.get("dbt_node")
+                ref_col = parent_ref.get("column")
+
+                if ref_model != parent_model:
+                    continue
+
+                # If we have explicit impacted columns for the parent model,
+                # preserve specificity where possible.
+                if parent_impacted_columns:
+                    if ref_col in parent_impacted_columns or str(ref_col).startswith("__colibri_"):
+                        inferred.add(child_col)
+
+        return inferred
 
     def _find_model_level_blast_radius(
         self,

@@ -1,3 +1,4 @@
 {
     "terminal.integrated.shellIntegration.enabled": false,
+    "python-envs.defaultEnvManager": "ms-python.python:system",
 }
