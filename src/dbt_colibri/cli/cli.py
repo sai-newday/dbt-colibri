@@ -35,6 +35,68 @@ def cli():
     if update_msg:
         click.echo(click.style(update_msg, fg="yellow"))
 
+
+def _find_matching_model_ids(manifest_data: dict, name: str) -> list[str]:
+    """Return matching fully-qualified node IDs for an exact dbt node/table name."""
+    target = name.strip().lower()
+    if not target:
+        return []
+
+    all_nodes = {
+        **manifest_data.get("nodes", {}),
+        **manifest_data.get("sources", {}),
+    }
+
+    matches = []
+    for node_id, node in all_nodes.items():
+        node_name = (node.get("name") or "").lower()
+        if node_name == target or node_id.lower().endswith(f".{target}"):
+            matches.append(node_id)
+
+    return sorted(set(matches))
+
+
+@cli.command("resolve-model")
+@click.option(
+    "--name",
+    type=str,
+    required=True,
+    help="Short model/source table name to resolve (e.g., raw_customers)",
+)
+@click.option(
+    "--manifest",
+    type=str,
+    default="target/manifest.json",
+    help="Path to dbt manifest.json file (default: target/manifest.json)",
+)
+def resolve_model_cmd(name, manifest):
+    """Resolve a short model/source name to matching fully-qualified dbt node IDs."""
+    if not os.path.exists(manifest):
+        click.echo(f"❌ Manifest file not found at {manifest}")
+        sys.exit(1)
+
+    try:
+        with open(manifest, "r", encoding="utf-8") as f:
+            manifest_data = json.load(f)
+    except Exception as e:
+        click.echo(f"❌ Error reading manifest: {str(e)}")
+        sys.exit(1)
+
+    matches = _find_matching_model_ids(manifest_data, name)
+
+    click.echo("")
+    if not matches:
+        click.echo(f"No matches found for '{name}'.")
+        sys.exit(1)
+
+    click.echo(f"Matching full IDs for '{name}':")
+    for model_id in matches:
+        click.echo(f"- {model_id}")
+
+    click.echo("")
+    click.echo(f"✅ Found {len(matches)} match(es)")
+    sys.exit(0)
+
 @cli.command("generate")
 @click.option(
     "--output-dir",
@@ -125,7 +187,7 @@ def generate_report(output_dir, manifest, catalog, debug, light):
     "--model",
     type=str,
     required=True,
-    help="Model name to analyze (e.g., model.project.customers)",
+    help="Fully-qualified model/source ID to analyze (e.g., model.project.customers or source.project.source_name.table_name)",
 )
 @click.option(
     "--columns",
@@ -192,6 +254,7 @@ def blast_radius_cmd(model, columns, manifest, catalog, format, max_depth, debug
 
         logger.info("Extracting lineage data...")
         lineage_data = extractor.extract_project_lineage()
+        lineage_data["model_children"] = extractor.child_map
 
         # Parse columns when provided; otherwise run model-level lineage.
         column_list = [col.strip() for col in columns.split(",") if col.strip()] if columns else []

@@ -1,4 +1,5 @@
 import os
+import json
 import pytest
 from click.testing import CliRunner
 from dbt_colibri.cli.cli import cli
@@ -126,3 +127,77 @@ def test_generate_with_duckdb_adapter(test_output_dir):
     assert result.exit_code == 0, result.output
     assert os.path.exists(os.path.join(test_output_dir, "colibri-manifest.json"))
     assert os.path.exists(os.path.join(test_output_dir, "index.html"))
+
+
+def test_resolve_model_success(tmp_path):
+    """resolve-model returns matching fully-qualified IDs."""
+    manifest_path = tmp_path / "manifest.json"
+    manifest_data = {
+        "nodes": {
+            "model.pkg.stg_customers": {"name": "stg_customers"},
+            "seed.pkg.raw_customers": {"name": "raw_customers"},
+        },
+        "sources": {
+            "source.pkg.raw.raw_customers": {"name": "raw_customers"},
+        },
+    }
+    manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "resolve-model",
+            "--name",
+            "raw_customers",
+            "--manifest",
+            str(manifest_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "seed.pkg.raw_customers" in result.output
+    assert "source.pkg.raw.raw_customers" in result.output
+
+
+def test_resolve_model_no_matches(tmp_path):
+    """resolve-model exits with code 1 when nothing matches."""
+    manifest_path = tmp_path / "manifest.json"
+    manifest_data = {
+        "nodes": {"model.pkg.stg_customers": {"name": "stg_customers"}},
+        "sources": {},
+    }
+    manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "resolve-model",
+            "--name",
+            "raw_customers",
+            "--manifest",
+            str(manifest_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "No matches found" in result.output
+
+
+def test_resolve_model_missing_manifest():
+    """resolve-model exits with code 1 when manifest path is invalid."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "resolve-model",
+            "--name",
+            "raw_customers",
+            "--manifest",
+            "does-not-exist.json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Manifest file not found" in result.output

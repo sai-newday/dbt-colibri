@@ -87,7 +87,7 @@ colibri blast-radius [OPTIONS]
 ```
 
 **Options:**
-- `--model`: Model to analyze (e.g., `model.project.customers`) [required]
+- `--model`: Fully-qualified model/source ID to analyze (e.g., `model.project.customers` or `source.project.source_name.table_name`) [required]
 - `--columns`: Comma-separated column names (e.g., `customer_id,email`). Omit for model-level lineage.
 - `--manifest`: Path to dbt manifest.json (default: `target/manifest.json`)
 - `--catalog`: Path to dbt catalog.json (default: `target/catalog.json`)
@@ -147,6 +147,27 @@ colibri blast-radius --model model.analytics.customers --columns email --format 
 - **Change Risk Assessment**: Identify critical downstream dependencies
 - **Documentation**: Understand data flow and model relationships
 - **Refactoring**: Plan column deprecation or renaming with full visibility of impacts
+
+#### `colibri resolve-model`
+
+Resolve a short dbt model/source table name to matching fully-qualified IDs.
+
+Useful when `blast-radius` requires full IDs and there are collisions across merged projects.
+
+```bash
+colibri resolve-model --name raw_customers [OPTIONS]
+```
+
+**Options:**
+- `--name`: Short model/source table name to resolve (e.g., `raw_customers`) [required]
+- `--manifest`: Path to dbt manifest.json (default: `target/manifest.json`)
+- `--help`: Show help message
+
+**Example:**
+
+```bash
+colibri resolve-model --name raw_customers --manifest target/manifest.json
+```
 
 ### Output Files
 

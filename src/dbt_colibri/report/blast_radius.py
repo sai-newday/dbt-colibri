@@ -31,33 +31,29 @@ class BlastRadiusAnalyzer:
         self.lineage_data = lineage_data
         self.logger = logger or logging.getLogger("colibri.blast_radius")
         self.children_map = lineage_data.get("lineage", {}).get("children", {})
-        self.all_models = self._build_model_index()
+        self.model_children_map = lineage_data.get("model_children", {})
+        self.all_model_ids = self._build_model_index()
 
     def _build_model_index(self) -> Dict[str, str]:
-        """Build an index mapping short names to full model IDs."""
-        index = {}
+        """Build an exact-match index for fully-qualified node IDs."""
+        all_ids: Dict[str, str] = {}
         children = self.lineage_data.get("lineage", {}).get("children", {})
         parents = self.lineage_data.get("lineage", {}).get("parents", {})
+        manifest_children = self.lineage_data.get("model_children", {})
         
-        # Get all model IDs
-        all_model_ids = set(children.keys()) | set(parents.keys())
+        # Get all known node IDs from extracted column lineage and manifest model graph.
+        all_model_ids = set(children.keys()) | set(parents.keys()) | set(manifest_children.keys())
+        for child_list in manifest_children.values():
+            all_model_ids.update(child_list)
         
         for model_id in all_model_ids:
-            # Extract short name (last part after last dot)
-            short_name = model_id.split(".")[-1]
-            index[short_name.lower()] = model_id
-            index[model_id.lower()] = model_id
-        
-        return index
+            all_ids[model_id.lower()] = model_id
+
+        return all_ids
 
     def _resolve_model_id(self, model_name: str) -> Optional[str]:
         """
         Resolve a model name to its full ID.
-        
-        Supports:
-        - Full IDs: model.project.model_name
-        - Short names: model_name
-        - Project-qualified: project.model_name
         
         Args:
             model_name: The model name to resolve
@@ -66,23 +62,16 @@ class BlastRadiusAnalyzer:
             Full model ID if found, None otherwise
         """
         model_lower = model_name.lower()
-        
-        # Try exact match first
-        if model_lower in self.all_models:
-            return self.all_models[model_lower]
-        
-        # Try partial matches (for short names)
-        matches = [mid for short, mid in self.all_models.items() 
-                  if short.endswith(model_lower) or mid.endswith(model_lower)]
-        
-        if len(matches) == 1:
-            return matches[0]
-        elif len(matches) > 1:
-            self.logger.warning(
-                f"Multiple models match '{model_name}': {matches}. "
-                f"Please use full model ID (e.g., model.project.{model_name})"
-            )
-            return None
+
+        # Full IDs only: exact match against known node IDs.
+        if model_lower in self.all_model_ids:
+            return self.all_model_ids[model_lower]
+
+        self.logger.warning(
+            f"Model '{model_name}' not found as a full node ID. "
+            "Please pass the fully-qualified ID (for example: "
+            "model.project.customers or source.project.source_name.table_name)."
+        )
         
         return None
 
@@ -96,7 +85,7 @@ class BlastRadiusAnalyzer:
         Find all downstream models and columns affected by changes to the specified columns.
         
         Args:
-            model_id: The source model ID or name (e.g., "model.project.customers" or "customers")
+            model_id: The source model full ID (e.g., "model.project.customers")
             columns: List of column names to analyze
             max_depth: Maximum depth to traverse (None = unlimited)
             
@@ -198,33 +187,42 @@ class BlastRadiusAnalyzer:
             if max_depth is not None and depth >= max_depth:
                 continue
 
-            if current_model not in self.children_map:
-                continue
+            downstream_nodes = self.model_children_map.get(current_model)
 
-            downstream_models = set()
-            for children in self.children_map[current_model].values():
-                for child_mapping in children:
-                    child_model = child_mapping.get("model") or child_mapping.get("dbt_node")
-                    if child_model:
-                        downstream_models.add(child_model)
+            # Fallback for lineage payloads without manifest model graph.
+            if downstream_nodes is None:
+                downstream_nodes = []
+                if current_model in self.children_map:
+                    dedup = set()
+                    for children in self.children_map[current_model].values():
+                        for child_mapping in children:
+                            child_model = child_mapping.get("model") or child_mapping.get("dbt_node")
+                            if child_model and child_model not in dedup:
+                                dedup.add(child_model)
+                                downstream_nodes.append(child_model)
 
-            for child_model in downstream_models:
-                edge_key = (current_model, child_model)
+            for child_node in downstream_nodes:
+                edge_key = (current_model, child_node)
                 if edge_key in visited_edges:
                     continue
 
                 visited_edges.add(edge_key)
 
-                if child_model not in affected:
-                    affected[child_model] = {
+                new_path = path + [child_node]
+                queue.append((child_node, depth + 1, new_path))
+
+                # Keep output focused on downstream models.
+                if not child_node.startswith("model."):
+                    continue
+
+                if child_node not in affected:
+                    affected[child_node] = {
                         "columns": set(),
                         "depth": depth + 1,
                         "paths": [],
                     }
 
-                new_path = path + [child_model]
-                affected[child_model]["paths"].append(new_path)
-                queue.append((child_model, depth + 1, new_path))
+                affected[child_node]["paths"].append(new_path)
 
         return self._format_results(model_id, [], affected)
 

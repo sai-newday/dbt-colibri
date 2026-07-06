@@ -329,3 +329,55 @@ class TestBlastRadiusEdgeCases:
         # Test with default logger
         analyzer2 = BlastRadiusAnalyzer(lineage)
         assert analyzer2.logger is not None
+
+    def test_model_level_uses_manifest_model_children(self):
+        """Model-level traversal should include manifest child_map dependencies."""
+        lineage = {
+            "lineage": {
+                "children": {
+                    "source.pkg.raw.raw_customers": {
+                        "id": [{"model": "model.pkg.stg_customers", "column": "id"}]
+                    },
+                    "model.pkg.stg_customers": {
+                        "id": [{"model": "model.pkg.dim_customers", "column": "id"}]
+                    },
+                },
+                "parents": {},
+            },
+            "model_children": {
+                "source.pkg.raw.raw_customers": ["model.pkg.stg_customers"],
+                "model.pkg.stg_customers": ["model.pkg.dim_customers"],
+                "model.pkg.dim_customers": ["model.other.cross_project_rollup"],
+                "model.other.cross_project_rollup": [],
+            },
+        }
+
+        analyzer = BlastRadiusAnalyzer(lineage)
+        result = analyzer.find_blast_radius("source.pkg.raw.raw_customers", [])
+
+        affected_models = {item["model"] for item in result["affected_items"]}
+        assert "model.pkg.stg_customers" in affected_models
+        assert "model.pkg.dim_customers" in affected_models
+        assert "model.other.cross_project_rollup" in affected_models
+
+    def test_short_name_rejected_requires_full_id(self):
+        """Short names should not resolve; blast radius requires full node IDs."""
+        lineage = {
+            "lineage": {
+                "children": {
+                    "source.pkg.raw.raw_customers": {
+                        "id": [{"model": "model.pkg.stg_customers", "column": "id"}]
+                    }
+                },
+                "parents": {},
+            },
+            "model_children": {
+                "source.pkg.raw.raw_customers": ["model.pkg.stg_customers"],
+            },
+        }
+
+        analyzer = BlastRadiusAnalyzer(lineage)
+        result = analyzer.find_blast_radius("raw_customers", [])
+
+        assert result["summary"]["affected_models_count"] == 0
+        assert result["source_model"] == "raw_customers"
