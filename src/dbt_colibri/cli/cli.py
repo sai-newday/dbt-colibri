@@ -9,23 +9,6 @@ from ..report.generator import DbtColibriReportGenerator
 from ..report.blast_radius import BlastRadiusAnalyzer
 from importlib.metadata import version, PackageNotFoundError
 
-
-def _is_telemetry_disabled(cli_flag: bool) -> bool:
-    """Check if telemetry is disabled via CLI flag or environment variables.
-
-    Telemetry is disabled if any of the following are true:
-      - ``--disable-telemetry`` CLI flag is passed
-      - ``DO_NOT_TRACK=1`` environment variable is set (community standard)
-      - ``DISABLE_COLIBRI_TELEMETRY=1`` environment variable is set
-    """
-    if cli_flag:
-        return True
-    if os.environ.get("DO_NOT_TRACK", "").strip() == "1":
-        return True
-    if os.environ.get("DISABLE_COLIBRI_TELEMETRY", "").strip() == "1":
-        return True
-    return False
-
 COLIBRI_LOGO = r"""
  ______     ______     __         __     ______     ______     __    
 /\  ___\   /\  __ \   /\ \       /\ \   /\  == \   /\  == \   /\ \   
@@ -83,15 +66,8 @@ def cli():
     default=False,
     help="Enable light mode (excludes compiled_code from output for smaller file size)"
 )
-@click.option(
-    "--disable-telemetry",
-    is_flag=True,
-    default=False,
-    help="Disable anonymous usage telemetry in the generated HTML report. "
-         "Can also be set via DO_NOT_TRACK=1 or DISABLE_COLIBRI_TELEMETRY=1 environment variables."
-)
 
-def generate_report(output_dir, manifest, catalog, debug, light, disable_telemetry):
+def generate_report(output_dir, manifest, catalog, debug, light):
     """Generate a dbt-colibri lineage report with both JSON and HTML output."""
     import logging
     from ..utils import log
@@ -102,17 +78,6 @@ def generate_report(output_dir, manifest, catalog, debug, light, disable_telemet
         # Set up logging based on flag
         log_level = logging.DEBUG if debug else logging.INFO
         logger = log.setup_logging(level=log_level)
-
-        # Resolve telemetry opt-out from CLI flag + env vars
-        telemetry_disabled = _is_telemetry_disabled(disable_telemetry)
-
-        if not telemetry_disabled:
-            click.echo(
-                "Colibri collects anonymous usage statistics (adapter type, node count) "
-                "to improve the product.\n"
-                "To disable, use --disable-telemetry, or set DO_NOT_TRACK=1 "
-                "or DISABLE_COLIBRI_TELEMETRY=1.\n"
-            )
 
         if not os.path.exists(manifest):
             logger.error(f"❌ Manifest file not found at {manifest}")
@@ -140,7 +105,7 @@ def generate_report(output_dir, manifest, catalog, debug, light, disable_telemet
 
         logger.info("Extracting lineage data...")
         report_generator = DbtColibriReportGenerator(
-            extractor, light_mode=light, disable_telemetry=telemetry_disabled
+            extractor, light_mode=light
         )
 
         logger.info("Generating report...")

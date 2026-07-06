@@ -1,4 +1,3 @@
-import hashlib
 import json
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -19,7 +18,7 @@ class DbtColibriReportGenerator:
     - Report generation (DbtColibriReportGenerator)
     """
 
-    def __init__(self, extractor: DbtColumnLineageExtractor, light_mode: bool = False, disable_telemetry: bool = False):
+    def __init__(self, extractor: DbtColumnLineageExtractor, light_mode: bool = False):
         self.extractor = extractor
         self.manifest = extractor.manifest
         self.catalog = extractor.catalog
@@ -27,7 +26,6 @@ class DbtColibriReportGenerator:
         self.colibri_version = extractor.colibri_version
         self.dialect = extractor.dialect
         self.light_mode = light_mode
-        self.disable_telemetry = disable_telemetry
         self._tests_by_node: Optional[Dict[str, Dict[str, List[dict]]]] = None
 
     def _build_tests_by_node(self) -> Dict[str, Dict[str, List[dict]]]:
@@ -584,15 +582,6 @@ class DbtColibriReportGenerator:
 
         project_name = self.manifest.get("metadata", {}).get("project_name", "project")
 
-        # Build an anonymized project fingerprint that is stable across runs
-        # but unique per team, even if project names collide.
-        # Combines the project name with the sorted set of database.schema pairs.
-        schema_pairs = sorted(
-            {f"{db}.{s}" for db, schemas in db_tree.items() for s in schemas}
-        )
-        fingerprint_input = f"{project_name}|{'|'.join(schema_pairs)}"
-        project_fingerprint = hashlib.sha256(fingerprint_input.encode()).hexdigest()[:16]
-
         # Build the final structure
         result = {
             "metadata": {
@@ -603,7 +592,6 @@ class DbtColibriReportGenerator:
                 "dbt_schema_version": self.manifest.get("metadata", {}).get("dbt_schema_version"),
                 "dbt_invocation_id": self.manifest.get("metadata", {}).get("invocation_id"),
                 "dbt_project_name": project_name,
-                "dbt_project_id": project_fingerprint,
                 "total_model_count": self.extractor.total_model_count,
                 "unmaterialized_model_count": self.extractor.unmaterialized_model_count,
             },
@@ -695,7 +683,6 @@ class DbtColibriReportGenerator:
             data=lineage_stripped,
             template_html_path=str(html_template_path),
             output_html_path=str(html_output_path),
-            disable_telemetry=self.disable_telemetry,
         )
         del lineage_stripped
 
@@ -709,15 +696,12 @@ def inject_data_into_html(
     data: dict,
     template_html_path: str = "dist/index.html",
     output_html_path: Optional[str] = None,
-    disable_telemetry: bool = False,
 ) -> str:
     """
     Inject JSON data into the compiled HTML file by encoding the dict
     directly to base64 without writing a temp file.
 
-    When *disable_telemetry* is ``True``, a ``<script>`` tag setting
-    ``window.colibriTelemetry = false`` is injected before the app loads so
-    the UI honours the opt-out.
+    Data is injected into ``window.colibriData`` before the app bootstraps.
     """
     # Read the template (expected to be much smaller than the data)
     with open(template_html_path, "r", encoding="utf-8") as f:
@@ -743,9 +727,6 @@ def inject_data_into_html(
 
     with open(output_html_path, "w", encoding="utf-8") as out_f:
         out_f.write(template_html[:insert_at])
-        # Inject telemetry opt-out flag before data so it's set when the app boots
-        if disable_telemetry:
-            out_f.write("<script>window.colibriTelemetry = false;</script>")
         out_f.write('<script>window.colibriData = JSON.parse(atob("')
         out_f.write(b64_str)
         out_f.write('"));</script>')
