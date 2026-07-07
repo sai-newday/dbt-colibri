@@ -1,336 +1,191 @@
 
+# Newday Column Lineage
 
+Newday-specific CLI tooling and a self-hostable dashboard for extracting and visualizing **column-level lineage** from dbt projects.
 
+Built for internal data teams who need transparent lineage tracking for development, release reviews, and production change impact analysis.
 
-![dbt-colibri header](https://github.com/b-ned/dbt-colibri/blob/d31ece39bacf862e485233aad3e84df9a7618946/static/colibri_header.png)
+## Why Newday Column Lineage?
 
-[![PyPI version](https://badge.fury.io/py/dbt-colibri.svg)](https://badge.fury.io/py/dbt-colibri)
-[![Python Support](https://img.shields.io/pypi/pyversions/dbt-colibri.svg)](https://pypi.org/project/dbt-colibri/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-
-
-
-A lightweight, developer-friendly CLI tool and self-hostable dashboard for extracting and visualizing **column-level lineage** from your dbt projects.
-
-Built for data teams who want transparent, flexible lineage tracking without vendor lock-in or complex enterprise tooling.
-
-
-<div align="center">
-  <img width="800" height="510" alt="colibri-demo-tight" src="https://github.com/user-attachments/assets/a42827a1-cb2f-4522-8cd0-5ba66aa61998" />
-</div>
-
-## Why dbt-colibri?
-
-- **🔍 Complete visibility**: Easy UI, track how every column flows through your dbt transformations
-- **⚡ Fast & lightweight**: Generate reports in seconds from your existing dbt artifacts
-- **🏠 Self-hosted**: No cloud dependencies or external services required
-
-Documentation site: [https://www.docs.colibri-data.com](https://www.docs.colibri-data.com)
+- **Complete visibility**: Track how each column flows through dbt transformations
+- **Fast and lightweight**: Generate reports quickly from existing dbt artifacts
+- **Self-hosted**: Run fully within Newday environments
 
 ## Quick Start
 
 ### Installation
 
-```bash
-# Using uv (recommended)
-uv add dbt-colibri
-
-# Using pip
-pip install dbt-colibri
-```
+Install this project in your Newday Python environment from the internal source used by your team.
 
 ### Basic Usage
 
-1. **Run dbt** to generate the required artifacts:
+1. Run dbt to generate required artifacts:
    ```bash
    dbt compile
    dbt docs generate
    ```
 
-2. **Generate lineage report**:
+2. Generate lineage report:
    ```bash
    colibri generate
    ```
 
-3. **View results**: Open `dist/index.html` in your browser
+3. View results: open `dist/index.html` in your browser.
 
-That's it! Your column lineage dashboard is ready. Note you can also use dbt run/build, to generate the `manifest.json`.
+You can also use `dbt run` or `dbt build` to generate `manifest.json`.
 
-## Documentation
+## CLI Commands
 
-### CLI Commands
+### `colibri generate`
 
-#### `colibri generate`
-
-Generates column lineage reports from your dbt project.
+Generate column lineage reports from dbt artifacts.
 
 ```bash
 colibri generate [OPTIONS]
 ```
 
-**Options:**
-- `--manifest`: Path to dbt manifest.json (default: `target/manifest.json`)
-- `--catalog`: Path to dbt catalog.json (default: `target/catalog.json`)
+Options:
+- `--manifest`: Path to dbt `manifest.json` (default: `target/manifest.json`)
+- `--catalog`: Path to dbt `catalog.json` (default: `target/catalog.json`)
 - `--output-dir`: Output directory (default: `dist/`)
-- `--help`: Show help message
-- `--light`: For very big dbt projects, excludes attributes like compiled SQL and returns smaller HTML file.
+- `--light`: Excludes heavier attributes such as compiled SQL for large projects
 
-#### `colibri blast-radius`
+### `colibri blast-radius`
 
-Analyze the blast radius (downstream impact) of changes to specific columns in a dbt model.
-
-This command identifies all downstream models and columns that would be affected by changes to the specified columns in your source model. Perfect for PR reviews and impact analysis.
+Analyze downstream impact of column changes in a model or source.
 
 ```bash
 colibri blast-radius [OPTIONS]
 ```
 
-**Options:**
-- `--model`: Fully-qualified model/source ID to analyze (e.g., `model.project.customers` or `source.project.source_name.table_name`) [required]
-- `--columns`: Comma-separated column names (e.g., `customer_id,email`). Omit for model-level lineage.
-- `--manifest`: Path to dbt manifest.json (default: `target/manifest.json`)
-- `--catalog`: Path to dbt catalog.json (default: `target/catalog.json`)
-- `--format`: Output format: `json` or `text` (default: `json`)
+Options:
+- `--model`: Fully qualified model/source ID (required)
+- `--columns`: Comma-separated column names; omit for model-level lineage
+- `--manifest`: Path to dbt `manifest.json` (default: `target/manifest.json`)
+- `--catalog`: Path to dbt `catalog.json` (default: `target/catalog.json`)
+- `--format`: `json` or `text` (default: `json`)
 - `--max-depth`: Maximum depth to traverse (default: unlimited)
-- `--debug`: Enable debug-level logging
-- `--help`: Show help message
+- `--debug`: Enable debug logging
 
-**Examples:**
+Example:
 
 ```bash
-# Analyze impact of customer_id column changes
-colibri blast-radius --model model.analytics.customers --columns customer_id
-
-# Analyze multiple columns with text output
-colibri blast-radius --model model.analytics.orders --columns order_id,customer_id --format text
-
-# Limit analysis to direct impact only (depth 1)
-colibri blast-radius --model model.analytics.customers --columns customer_id --max-depth 1
-
-# Output as JSON for CI/CD pipelines
-colibri blast-radius --model model.analytics.customers --columns email --format json
+colibri blast-radius --model model.analytics.customers --columns customer_id --format json
 ```
 
-**Output Format (JSON):**
+### `colibri resolve-model`
 
-```json
-{
-  "source_model": "model.analytics.customers",
-  "source_columns": ["customer_id"],
-  "affected_items": [
-    {
-      "model": "model.analytics.orders",
-      "columns": ["customer_id"],
-      "depth": 1,
-      "paths": [["model.analytics.customers", "model.analytics.orders"]]
-    },
-    {
-      "model": "model.analytics.dashboards",
-      "columns": ["customer_id"],
-      "depth": 2,
-      "paths": [["model.analytics.customers", "model.analytics.orders", "model.analytics.dashboards"]]
-    }
-  ],
-  "summary": {
-    "affected_models_count": 2,
-    "affected_columns_count": 2,
-    "max_depth": 2,
-    "total_downstream_items": 2
-  }
-}
-```
-
-**Use Cases:**
-
-- **PR Impact Analysis**: Check what models will be affected by a schema change before merging
-- **Change Risk Assessment**: Identify critical downstream dependencies
-- **Documentation**: Understand data flow and model relationships
-- **Refactoring**: Plan column deprecation or renaming with full visibility of impacts
-
-#### `colibri resolve-model`
-
-Resolve a short dbt model/source table name to matching fully-qualified IDs.
-
-Useful when `blast-radius` requires full IDs and there are collisions across merged projects.
+Resolve a short model/source table name to matching fully qualified IDs.
 
 ```bash
 colibri resolve-model --name raw_customers [OPTIONS]
 ```
 
-**Options:**
-- `--name`: Short model/source table name to resolve (e.g., `raw_customers`) [required]
-- `--manifest`: Path to dbt manifest.json (default: `target/manifest.json`)
-- `--help`: Show help message
+Options:
+- `--name`: Short model/source table name to resolve (required)
+- `--manifest`: Path to dbt `manifest.json` (default: `target/manifest.json`)
 
-**Example:**
+### `colibri merge-artifacts`
 
-```bash
-colibri resolve-model --name raw_customers --manifest target/manifest.json
-```
-
-#### `colibri merge-artifacts`
-
-Merge manifest/catalog files from multiple dbt projects into one combined artifact set.
+Merge manifest/catalog files from multiple dbt projects.
 
 ```bash
 colibri merge-artifacts [OPTIONS]
 ```
 
-**Options:**
-- `--project-artifacts`: Repeatable triple: `PROJECT MANIFEST_PATH CATALOG_PATH` [required]
-- `--output-dir`: Directory where merged `manifest.json` and `catalog.json` will be written [required]
-- `--no-strict`: Allow unresolved collisions without failing (default is strict mode)
+Options:
+- `--project-artifacts`: Repeatable triple: `PROJECT MANIFEST_PATH CATALOG_PATH` (required)
+- `--output-dir`: Directory where merged artifacts are written (required)
+- `--no-strict`: Allow unresolved collisions without failing
 - `--link-cross-project-sources`: Rewrite cross-project sources to upstream models when available
-- `--help`: Show help message
 
-**Example:**
+### `colibri validate-cross-project`
 
-```bash
-colibri merge-artifacts \
-  --project-artifacts jaffleshop /Users/n45413/dev/jaffleshop/target/manifest.json /Users/n45413/dev/jaffleshop/target/catalog.json \
-  --project-artifacts baffleshop /Users/n45413/dev/baffleshop/target/manifest.json /Users/n45413/dev/baffleshop/target/catalog.json \
-  --output-dir /Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts \
-  --link-cross-project-sources
-```
-
-#### `colibri validate-cross-project`
-
-Validate cross-project lineage in a generated `colibri-manifest.json`.
+Validate cross-project lineage in generated `colibri-manifest.json`.
 
 ```bash
 colibri validate-cross-project --manifest dist/colibri-manifest.json [OPTIONS]
 ```
 
-**Options:**
-- `--manifest`: Path to generated `colibri-manifest.json` [required]
-- `--format`: Output format: `text` or `json` (default: `text`)
-- `--help`: Show help message
+Options:
+- `--manifest`: Path to generated `colibri-manifest.json` (required)
+- `--format`: `text` or `json` (default: `text`)
 
-Validation behavior:
-- Accepts source-only parent references when no matching upstream model exists in other projects.
-- Raises an issue only when expected upstream is missing and matching candidate models are found in other projects.
+## Output Files
 
-### Output Files
+- `colibri-manifest.json`: lineage data
+- `index.html`: interactive visualization dashboard
 
-- **`colibri-manifest.json`**: Lineage data
-- **`index.html`**: Interactive (standalone) visualization dashboard
+## Project Structure
 
-
-### Project Structure
-
-``` 
+```text
 your-dbt-project/
-├── target/
-│   ├── manifest.json    # Generated by dbt
-│   └── catalog.json     # Generated by dbt docs generate
-└── dist/                # Generated by colibri
-    ├── index.html       # Interactive dashboard
-    └── colibri-manifest.json
+|-- target/
+|   |-- manifest.json
+|   `-- catalog.json
+`-- dist/
+    |-- index.html
+    `-- colibri-manifest.json
 ```
 
-## Advanced Usage
+## Multi-Project Usage
 
-### Multi-project Lineage (jaffleshop + baffleshop)
+1. Merge dbt artifacts from multiple projects.
+2. Generate HTML from merged artifacts.
+3. Validate cross-project lineage using generated output.
 
-1. Merge dbt artifacts from both projects:
+Example paths in this repository:
+- `combined-lineage/dist/index.html`
+- `combined-lineage/dist/colibri-manifest.json`
+- `combined-lineage/dist/_merged_artifacts/manifest.json`
+- `combined-lineage/dist/_merged_artifacts/catalog.json`
 
-```bash
-colibri merge-artifacts \
-  --project-artifacts jaffleshop /Users/n45413/dev/jaffleshop/target/manifest.json /Users/n45413/dev/jaffleshop/target/catalog.json \
-  --project-artifacts baffleshop /Users/n45413/dev/baffleshop/target/manifest.json /Users/n45413/dev/baffleshop/target/catalog.json \
-  --output-dir /Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts \
-  --link-cross-project-sources
-```
+## CI/CD Integration
 
-2. Generate combined HTML from merged artifacts:
+Use the workflow example in [docs/github_pages_example.yml](docs/github_pages_example.yml) as a starting point for publishing generated static output.
 
-```bash
-colibri generate \
-  --manifest /Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts/manifest.json \
-  --catalog /Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts/catalog.json \
-  --output-dir /Users/n45413/dev/dbt-colibri/combined-lineage/dist
-```
-
-3. Validate cross-project lineage in the generated output:
-
-```bash
-colibri validate-cross-project \
-  --manifest /Users/n45413/dev/dbt-colibri/combined-lineage/dist/colibri-manifest.json
-```
-
-This produces:
-- `/Users/n45413/dev/dbt-colibri/combined-lineage/dist/index.html`
-- `/Users/n45413/dev/dbt-colibri/combined-lineage/dist/colibri-manifest.json`
-- `/Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts/manifest.json`
-- `/Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts/catalog.json`
-
-### CI/CD Integration
-
-The easiest way to deploy your static html is through github/gitlab pages (if you are on enterprise license you can do this privately)
-
-You can find the full example workflow at [`docs/github_pages_example.yml`](docs/github_pages_example.yml).
-
-#### General idea
-1. After every change to the production dbt code (push the `main` branch), GitHub Actions will:
-   - Set up Python and install dependencies with `uv`.
-   - Compile and generate docs needed for colibri.
-   - Run `colibri generate` to build the static HTML report in the `dist/` folder.
-2. The `dist/` folder is uploaded as an artifact and deployed natively to GitHub Pages using the official `actions/deploy-pages` action.
-3. The result is available at your repository’s Pages URL.
-
-Gitlab has similar functionality. Other options are writing the file to a bucket and mount it into a web server container (nginx).
+Typical pipeline flow:
+1. Install dependencies.
+2. Run `dbt compile` and `dbt docs generate`.
+3. Run `colibri generate`.
+4. Publish the `dist/` output.
 
 ## Technical Details
 
 ### Requirements
 
-- **Python**: tested on versions 3.9, 3.11, 3.13
+- Python versions tested: 3.9, 3.11, 3.13
+- dbt-core versions tested: 1.8.x, 1.9.x, 1.10.x
 
-- **Supported dbt Adapters**: 
-   - Snowflake, 
-   - BigQuery, 
-   - Redshift, 
-   - duckDB, 
-   - Postgres
-   - Databricks (**limited to SQL models**)
-   - Athena
-   - Trino
-   - SQL Server (TSQL)
-   - ClickHouse
-   - Oracle
-   - StarRocks
+### Supported dbt Adapters
 
-### dbt Compatibility
-
-| dbt-core Version | Status |
-|------------------|--------|
-| 1.8.x           | ✅ Tested |
-| 1.9.x           | ✅ Tested |
-| 1.10.x          | ✅ Tested |
+- Snowflake
+- BigQuery
+- Redshift
+- duckDB
+- Postgres
+- Databricks (SQL models)
+- Athena
+- Trino
+- SQL Server (TSQL)
+- ClickHouse
+- Oracle
+- StarRocks
 
 ### Architecture
 
-dbt-colibri leverages:
-- **SQLGlot** for SQL parsing and column lineage extraction
-- **dbt artifacts** (manifest.json, catalog.json) for metadata
-- **Static HTML/JS** for zero-dependency dashboard deployment
+This project uses:
+- SQL parsing and lineage extraction
+- dbt artifacts (`manifest.json`, `catalog.json`) for metadata
+- static HTML output for simple deployment
 
 ## Contributing
 
-We welcome contributions! Raise an issue or request a feature, if you are open to contribute you can let us now in the issue.
-
-- **Issues**: [GitHub Issues](https://github.com/b-ned/dbt-colibri/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/b-ned/dbt-colibri/discussions)
-
+Contributions are welcome through your team's normal development and review process.
 
 ### Development Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/dbt-colibri.git
-cd dbt-colibri
-
 # Install development dependencies
 uv sync --dev
 
@@ -343,14 +198,4 @@ ruff format
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-This project builds upon excellent open source work:
-
-- **[dbt-column-lineage-extractor](https://github.com/canva-public/dbt-column-lineage-extractor)** - Original column lineage extraction logic
-- **[SQLGlot](https://github.com/tobymao/sqlglot)** - SQL parsing and transformation
-- **[elementary-data](https://github.com/elementary-data/elementary)** - Inspiration for static HTML report structure
-
----
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
