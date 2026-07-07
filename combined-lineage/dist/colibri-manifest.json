@@ -1,13 +1,13 @@
 {
   "metadata": {
     "colibri_version": "0.3.6",
-    "generated_at": "2026-07-07T09:38:44Z",
+    "generated_at": "2026-07-07T15:54:31Z",
     "adapter_type": "duckdb",
     "dbt_version": "1.10.22",
     "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v12.json",
-    "dbt_invocation_id": "98dc92a1-2384-411d-a991-6fe01dbdec17",
+    "dbt_invocation_id": "67c1d507-0b77-46f0-ab21-461257cab6bf",
     "dbt_project_name": "jaffleshop",
-    "total_model_count": 19,
+    "total_model_count": 25,
     "unmaterialized_model_count": 0
   },
   "nodes": {
@@ -1323,6 +1323,532 @@
       },
       "relationName": "\"jaffleshop\".\"main\".\"public_order_status_summary\""
     },
+    "model.daffleshop.colibri_union_lineage": {
+      "id": "model.daffleshop.colibri_union_lineage",
+      "name": "colibri_union_lineage",
+      "fullName": "model.daffleshop.colibri_union_lineage",
+      "nodeType": "model",
+      "materialized": "table",
+      "modelType": "unknown",
+      "database": "daffleshop",
+      "schema": "main",
+      "path": "models/mesh/colibri_union_lineage.sql",
+      "description": "",
+      "contractEnforced": false,
+      "rawCode": "-- Union lineage model for Colibri cross-model traceability\nwith from_order_details as (\n    select\n        order_id,\n        customer_id,\n        order_date,\n        status,\n        amount,\n        cast(null as varchar) as order_size,\n        cast(null as varchar) as fulfillment_category,\n        cast(null as bigint) as order_count,\n        cast(null as double) as total_revenue,\n        'jaffle_order_details' as record_source\n    from {{ ref('jaffle_order_details') }}\n),\nfrom_order_enrichment as (\n    select\n        order_id,\n        customer_id,\n        order_date,\n        status,\n        amount,\n        order_size,\n        fulfillment_category,\n        cast(null as bigint) as order_count,\n        cast(null as double) as total_revenue,\n        'local_order_enrichment' as record_source\n    from {{ ref('local_order_enrichment') }}\n),\nfrom_revenue_summary as (\n    select\n        cast(null as varchar) as order_id,\n        cast(null as varchar) as customer_id,\n        cast(null as date) as order_date,\n        cast(null as varchar) as status,\n        cast(null as double) as amount,\n        order_size,\n        fulfillment_category,\n        order_count,\n        total_revenue,\n        'local_revenue_summary' as record_source\n    from {{ ref('local_revenue_summary') }}\n)\n\nselect * from from_order_details\nunion all\nselect * from from_order_enrichment\nunion all\nselect * from from_revenue_summary",
+      "compiledCode": "-- Union lineage model for Colibri cross-model traceability\nwith from_order_details as (\n    select\n        order_id,\n        customer_id,\n        order_date,\n        status,\n        amount,\n        cast(null as varchar) as order_size,\n        cast(null as varchar) as fulfillment_category,\n        cast(null as bigint) as order_count,\n        cast(null as double) as total_revenue,\n        'jaffle_order_details' as record_source\n    from \"daffleshop\".\"main\".\"jaffle_order_details\"\n),\nfrom_order_enrichment as (\n    select\n        order_id,\n        customer_id,\n        order_date,\n        status,\n        amount,\n        order_size,\n        fulfillment_category,\n        cast(null as bigint) as order_count,\n        cast(null as double) as total_revenue,\n        'local_order_enrichment' as record_source\n    from \"daffleshop\".\"main\".\"local_order_enrichment\"\n),\nfrom_revenue_summary as (\n    select\n        cast(null as varchar) as order_id,\n        cast(null as varchar) as customer_id,\n        cast(null as date) as order_date,\n        cast(null as varchar) as status,\n        cast(null as double) as amount,\n        order_size,\n        fulfillment_category,\n        order_count,\n        total_revenue,\n        'local_revenue_summary' as record_source\n    from \"daffleshop\".\"main\".\"local_revenue_summary\"\n)\n\nselect * from from_order_details\nunion all\nselect * from from_order_enrichment\nunion all\nselect * from from_revenue_summary",
+      "refs": [
+        {
+          "name": "jaffle_order_details",
+          "package": null,
+          "version": null
+        },
+        {
+          "name": "local_order_enrichment",
+          "package": null,
+          "version": null
+        },
+        {
+          "name": "local_revenue_summary",
+          "package": null,
+          "version": null
+        }
+      ],
+      "tags": [
+        "daffleshop"
+      ],
+      "columns": {
+        "order_id": {
+          "columnName": "order_id",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "lineageType": "transformation"
+        },
+        "customer_id": {
+          "columnName": "customer_id",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "lineageType": "transformation"
+        },
+        "order_date": {
+          "columnName": "order_date",
+          "hasLineage": true,
+          "dataType": "DATE",
+          "lineageType": "transformation"
+        },
+        "status": {
+          "columnName": "status",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "lineageType": "transformation"
+        },
+        "amount": {
+          "columnName": "amount",
+          "hasLineage": true,
+          "dataType": "DOUBLE",
+          "lineageType": "transformation"
+        },
+        "order_size": {
+          "columnName": "order_size",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "lineageType": "transformation"
+        },
+        "fulfillment_category": {
+          "columnName": "fulfillment_category",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "lineageType": "transformation"
+        },
+        "order_count": {
+          "columnName": "order_count",
+          "hasLineage": true,
+          "dataType": "BIGINT",
+          "lineageType": "transformation"
+        },
+        "total_revenue": {
+          "columnName": "total_revenue",
+          "hasLineage": true,
+          "dataType": "DOUBLE",
+          "lineageType": "transformation"
+        },
+        "record_source": {
+          "columnName": "record_source",
+          "hasLineage": false,
+          "dataType": "VARCHAR",
+          "description": "",
+          "tests": [
+            {
+              "unique_id": "test.daffleshop.not_null_colibri_union_lineage_record_source.814027ab5a",
+              "name": "not_null",
+              "namespace": null,
+              "config": {
+                "severity": "ERROR",
+                "warn_if": "!= 0",
+                "error_if": "!= 0"
+              },
+              "kwargs": {
+                "column_name": "record_source",
+                "model": "{{ get_where_subquery(ref('colibri_union_lineage')) }}"
+              },
+              "compiled_code": "\n    \n    \n\n\n\nselect record_source\nfrom \"daffleshop\".\"main\".\"colibri_union_lineage\"\nwhere record_source is null\n\n\n"
+            }
+          ],
+          "lineageType": "unknown"
+        }
+      },
+      "relationName": "\"daffleshop\".\"main\".\"colibri_union_lineage\""
+    },
+    "model.daffleshop.jaffle_order_details": {
+      "id": "model.daffleshop.jaffle_order_details",
+      "name": "jaffle_order_details",
+      "fullName": "model.daffleshop.jaffle_order_details",
+      "nodeType": "model",
+      "materialized": "table",
+      "modelType": "unknown",
+      "database": "daffleshop",
+      "schema": "main",
+      "path": "models/mesh/jaffle_order_details.sql",
+      "description": "",
+      "contractEnforced": false,
+      "rawCode": "-- Raw order data from jaffleshop public model\nselect\n    order_id,\n    customer_id,\n    order_date,\n    status,\n    amount\nfrom {{ source('jaffleshop', 'public_orders') }}",
+      "compiledCode": "-- Raw order data from jaffleshop public model\nselect\n    order_id,\n    customer_id,\n    order_date,\n    status,\n    amount\nfrom \"daffleshop\".\"main\".\"public_orders\"",
+      "refs": [],
+      "tags": [
+        "daffleshop"
+      ],
+      "columns": {
+        "order_id": {
+          "columnName": "order_id",
+          "hasLineage": true,
+          "dataType": "INTEGER",
+          "description": "",
+          "tests": [
+            {
+              "unique_id": "test.daffleshop.not_null_jaffle_order_details_order_id.9c5425f68b",
+              "name": "not_null",
+              "namespace": null,
+              "config": {
+                "severity": "ERROR",
+                "warn_if": "!= 0",
+                "error_if": "!= 0"
+              },
+              "kwargs": {
+                "column_name": "order_id",
+                "model": "{{ get_where_subquery(ref('jaffle_order_details')) }}"
+              },
+              "compiled_code": "\n    \n    \n\n\n\nselect order_id\nfrom \"daffleshop\".\"main\".\"jaffle_order_details\"\nwhere order_id is null\n\n\n"
+            },
+            {
+              "unique_id": "test.daffleshop.unique_jaffle_order_details_order_id.da7b3dd9ce",
+              "name": "unique",
+              "namespace": null,
+              "config": {
+                "severity": "ERROR",
+                "warn_if": "!= 0",
+                "error_if": "!= 0"
+              },
+              "kwargs": {
+                "column_name": "order_id",
+                "model": "{{ get_where_subquery(ref('jaffle_order_details')) }}"
+              },
+              "compiled_code": "\n    \n    \n\nselect\n    order_id as unique_field,\n    count(*) as n_records\n\nfrom \"daffleshop\".\"main\".\"jaffle_order_details\"\nwhere order_id is not null\ngroup by order_id\nhaving count(*) > 1\n\n\n"
+            }
+          ],
+          "lineageType": "pass-through"
+        },
+        "customer_id": {
+          "columnName": "customer_id",
+          "hasLineage": true,
+          "dataType": "INTEGER",
+          "lineageType": "pass-through"
+        },
+        "order_date": {
+          "columnName": "order_date",
+          "hasLineage": true,
+          "dataType": "DATE",
+          "lineageType": "pass-through"
+        },
+        "status": {
+          "columnName": "status",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "lineageType": "pass-through"
+        },
+        "amount": {
+          "columnName": "amount",
+          "hasLineage": true,
+          "dataType": "DOUBLE",
+          "lineageType": "pass-through"
+        }
+      },
+      "relationName": "\"daffleshop\".\"main\".\"jaffle_order_details\""
+    },
+    "model.daffleshop.local_order_enrichment": {
+      "id": "model.daffleshop.local_order_enrichment",
+      "name": "local_order_enrichment",
+      "fullName": "model.daffleshop.local_order_enrichment",
+      "nodeType": "model",
+      "materialized": "table",
+      "modelType": "unknown",
+      "database": "daffleshop",
+      "schema": "main",
+      "path": "models/mesh/local_order_enrichment.sql",
+      "description": "",
+      "contractEnforced": false,
+      "rawCode": "-- Enrich orders with size and recency categories\nselect\n    order_id,\n    customer_id,\n    order_date,\n    status,\n    amount,\n    case\n        when amount >= 30 then 'large'\n        when amount >= 15 then 'medium'\n        else 'small'\n    end as order_size,\n    case\n        when status = 'return_pending' or status = 'returned' then 'returned'\n        when status = 'shipped' or status = 'completed' then 'fulfilled'\n        else 'in_progress'\n    end as fulfillment_category\nfrom {{ ref('jaffle_order_details') }}",
+      "compiledCode": "-- Enrich orders with size and recency categories\nselect\n    order_id,\n    customer_id,\n    order_date,\n    status,\n    amount,\n    case\n        when amount >= 30 then 'large'\n        when amount >= 15 then 'medium'\n        else 'small'\n    end as order_size,\n    case\n        when status = 'return_pending' or status = 'returned' then 'returned'\n        when status = 'shipped' or status = 'completed' then 'fulfilled'\n        else 'in_progress'\n    end as fulfillment_category\nfrom \"daffleshop\".\"main\".\"jaffle_order_details\"",
+      "refs": [
+        {
+          "name": "jaffle_order_details",
+          "package": null,
+          "version": null
+        }
+      ],
+      "tags": [
+        "daffleshop"
+      ],
+      "columns": {
+        "order_id": {
+          "columnName": "order_id",
+          "hasLineage": true,
+          "dataType": "INTEGER",
+          "description": "",
+          "tests": [
+            {
+              "unique_id": "test.daffleshop.not_null_local_order_enrichment_order_id.931ce74328",
+              "name": "not_null",
+              "namespace": null,
+              "config": {
+                "severity": "ERROR",
+                "warn_if": "!= 0",
+                "error_if": "!= 0"
+              },
+              "kwargs": {
+                "column_name": "order_id",
+                "model": "{{ get_where_subquery(ref('local_order_enrichment')) }}"
+              },
+              "compiled_code": "\n    \n    \n\n\n\nselect order_id\nfrom \"daffleshop\".\"main\".\"local_order_enrichment\"\nwhere order_id is null\n\n\n"
+            },
+            {
+              "unique_id": "test.daffleshop.unique_local_order_enrichment_order_id.39d1e761ba",
+              "name": "unique",
+              "namespace": null,
+              "config": {
+                "severity": "ERROR",
+                "warn_if": "!= 0",
+                "error_if": "!= 0"
+              },
+              "kwargs": {
+                "column_name": "order_id",
+                "model": "{{ get_where_subquery(ref('local_order_enrichment')) }}"
+              },
+              "compiled_code": "\n    \n    \n\nselect\n    order_id as unique_field,\n    count(*) as n_records\n\nfrom \"daffleshop\".\"main\".\"local_order_enrichment\"\nwhere order_id is not null\ngroup by order_id\nhaving count(*) > 1\n\n\n"
+            }
+          ],
+          "lineageType": "pass-through"
+        },
+        "customer_id": {
+          "columnName": "customer_id",
+          "hasLineage": true,
+          "dataType": "INTEGER",
+          "lineageType": "pass-through"
+        },
+        "order_date": {
+          "columnName": "order_date",
+          "hasLineage": true,
+          "dataType": "DATE",
+          "lineageType": "pass-through"
+        },
+        "status": {
+          "columnName": "status",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "lineageType": "pass-through"
+        },
+        "amount": {
+          "columnName": "amount",
+          "hasLineage": true,
+          "dataType": "DOUBLE",
+          "lineageType": "pass-through"
+        },
+        "order_size": {
+          "columnName": "order_size",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "lineageType": "transformation"
+        },
+        "fulfillment_category": {
+          "columnName": "fulfillment_category",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "lineageType": "transformation"
+        }
+      },
+      "relationName": "\"daffleshop\".\"main\".\"local_order_enrichment\""
+    },
+    "model.daffleshop.local_revenue_summary": {
+      "id": "model.daffleshop.local_revenue_summary",
+      "name": "local_revenue_summary",
+      "fullName": "model.daffleshop.local_revenue_summary",
+      "nodeType": "model",
+      "materialized": "table",
+      "modelType": "unknown",
+      "database": "daffleshop",
+      "schema": "main",
+      "path": "models/mesh/local_revenue_summary.sql",
+      "description": "",
+      "contractEnforced": false,
+      "rawCode": "-- Aggregate revenue by order size and category\nselect\n    order_size,\n    fulfillment_category,\n    count(*) as order_count,\n    sum(amount) as total_revenue,\n    avg(amount) as avg_order_value,\n    count(distinct customer_id) as distinct_customers\nfrom {{ ref('local_order_enrichment') }}\ngroup by 1, 2",
+      "compiledCode": "-- Aggregate revenue by order size and category\nselect\n    order_size,\n    fulfillment_category,\n    count(*) as order_count,\n    sum(amount) as total_revenue,\n    avg(amount) as avg_order_value,\n    count(distinct customer_id) as distinct_customers\nfrom \"daffleshop\".\"main\".\"local_order_enrichment\"\ngroup by 1, 2",
+      "refs": [
+        {
+          "name": "local_order_enrichment",
+          "package": null,
+          "version": null
+        }
+      ],
+      "tags": [
+        "daffleshop"
+      ],
+      "columns": {
+        "order_size": {
+          "columnName": "order_size",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "description": "",
+          "tests": [
+            {
+              "unique_id": "test.daffleshop.not_null_local_revenue_summary_order_size.452d4cfdec",
+              "name": "not_null",
+              "namespace": null,
+              "config": {
+                "severity": "ERROR",
+                "warn_if": "!= 0",
+                "error_if": "!= 0"
+              },
+              "kwargs": {
+                "column_name": "order_size",
+                "model": "{{ get_where_subquery(ref('local_revenue_summary')) }}"
+              },
+              "compiled_code": "\n    \n    \n\n\n\nselect order_size\nfrom \"daffleshop\".\"main\".\"local_revenue_summary\"\nwhere order_size is null\n\n\n"
+            }
+          ],
+          "lineageType": "pass-through"
+        },
+        "fulfillment_category": {
+          "columnName": "fulfillment_category",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "lineageType": "pass-through"
+        },
+        "order_count": {
+          "columnName": "order_count",
+          "hasLineage": true,
+          "dataType": "BIGINT",
+          "lineageType": "unknown"
+        },
+        "total_revenue": {
+          "columnName": "total_revenue",
+          "hasLineage": true,
+          "dataType": "DOUBLE",
+          "lineageType": "transformation"
+        },
+        "avg_order_value": {
+          "columnName": "avg_order_value",
+          "hasLineage": true,
+          "dataType": "DOUBLE",
+          "lineageType": "transformation"
+        },
+        "distinct_customers": {
+          "columnName": "distinct_customers",
+          "hasLineage": true,
+          "dataType": "BIGINT",
+          "lineageType": "transformation"
+        }
+      },
+      "relationName": "\"daffleshop\".\"main\".\"local_revenue_summary\""
+    },
+    "model.daffleshop.jaffle_order_status": {
+      "id": "model.daffleshop.jaffle_order_status",
+      "name": "jaffle_order_status",
+      "fullName": "model.daffleshop.jaffle_order_status",
+      "nodeType": "model",
+      "materialized": "table",
+      "modelType": "unknown",
+      "database": "daffleshop",
+      "schema": "main",
+      "path": "models/mesh/jaffle_order_status.sql",
+      "description": "",
+      "contractEnforced": false,
+      "rawCode": "-- Order status summary from jaffleshop public model\nselect\n    status,\n    orders_count,\n    customers_count,\n    total_amount,\n    avg_order_value\nfrom {{ source('jaffleshop', 'public_order_status_summary') }}",
+      "compiledCode": "-- Order status summary from jaffleshop public model\nselect\n    status,\n    orders_count,\n    customers_count,\n    total_amount,\n    avg_order_value\nfrom \"daffleshop\".\"main\".\"public_order_status_summary\"",
+      "refs": [],
+      "tags": [
+        "daffleshop"
+      ],
+      "columns": {
+        "status": {
+          "columnName": "status",
+          "hasLineage": true,
+          "dataType": "VARCHAR",
+          "description": "",
+          "tests": [
+            {
+              "unique_id": "test.daffleshop.not_null_jaffle_order_status_status.4c942d44a8",
+              "name": "not_null",
+              "namespace": null,
+              "config": {
+                "severity": "ERROR",
+                "warn_if": "!= 0",
+                "error_if": "!= 0"
+              },
+              "kwargs": {
+                "column_name": "status",
+                "model": "{{ get_where_subquery(ref('jaffle_order_status')) }}"
+              },
+              "compiled_code": "\n    \n    \n\n\n\nselect status\nfrom \"daffleshop\".\"main\".\"jaffle_order_status\"\nwhere status is null\n\n\n"
+            }
+          ],
+          "lineageType": "pass-through"
+        },
+        "orders_count": {
+          "columnName": "orders_count",
+          "hasLineage": true,
+          "dataType": "BIGINT",
+          "lineageType": "pass-through"
+        },
+        "customers_count": {
+          "columnName": "customers_count",
+          "hasLineage": true,
+          "dataType": "BIGINT",
+          "lineageType": "pass-through"
+        },
+        "total_amount": {
+          "columnName": "total_amount",
+          "hasLineage": true,
+          "dataType": "DOUBLE",
+          "lineageType": "pass-through"
+        },
+        "avg_order_value": {
+          "columnName": "avg_order_value",
+          "hasLineage": true,
+          "dataType": "DOUBLE",
+          "lineageType": "pass-through"
+        }
+      },
+      "relationName": "\"daffleshop\".\"main\".\"jaffle_order_status\""
+    },
+    "model.daffleshop.jaffle_revenue_trends": {
+      "id": "model.daffleshop.jaffle_revenue_trends",
+      "name": "jaffle_revenue_trends",
+      "fullName": "model.daffleshop.jaffle_revenue_trends",
+      "nodeType": "model",
+      "materialized": "table",
+      "modelType": "unknown",
+      "database": "daffleshop",
+      "schema": "main",
+      "path": "models/mesh/jaffle_revenue_trends.sql",
+      "description": "",
+      "contractEnforced": false,
+      "rawCode": "-- Daily revenue trends from jaffleshop public model\nselect\n    order_date,\n    orders_count,\n    customers_count,\n    gross_revenue,\n    avg_order_value\nfrom {{ source('jaffleshop', 'public_daily_revenue') }}",
+      "compiledCode": "-- Daily revenue trends from jaffleshop public model\nselect\n    order_date,\n    orders_count,\n    customers_count,\n    gross_revenue,\n    avg_order_value\nfrom \"daffleshop\".\"main\".\"public_daily_revenue\"",
+      "refs": [],
+      "tags": [
+        "daffleshop"
+      ],
+      "columns": {
+        "order_date": {
+          "columnName": "order_date",
+          "hasLineage": true,
+          "dataType": "DATE",
+          "description": "",
+          "tests": [
+            {
+              "unique_id": "test.daffleshop.not_null_jaffle_revenue_trends_order_date.b1fbd713c0",
+              "name": "not_null",
+              "namespace": null,
+              "config": {
+                "severity": "ERROR",
+                "warn_if": "!= 0",
+                "error_if": "!= 0"
+              },
+              "kwargs": {
+                "column_name": "order_date",
+                "model": "{{ get_where_subquery(ref('jaffle_revenue_trends')) }}"
+              },
+              "compiled_code": "\n    \n    \n\n\n\nselect order_date\nfrom \"daffleshop\".\"main\".\"jaffle_revenue_trends\"\nwhere order_date is null\n\n\n"
+            }
+          ],
+          "lineageType": "pass-through"
+        },
+        "orders_count": {
+          "columnName": "orders_count",
+          "hasLineage": true,
+          "dataType": "BIGINT",
+          "lineageType": "pass-through"
+        },
+        "customers_count": {
+          "columnName": "customers_count",
+          "hasLineage": true,
+          "dataType": "BIGINT",
+          "lineageType": "pass-through"
+        },
+        "gross_revenue": {
+          "columnName": "gross_revenue",
+          "hasLineage": true,
+          "dataType": "DOUBLE",
+          "lineageType": "pass-through"
+        },
+        "avg_order_value": {
+          "columnName": "avg_order_value",
+          "hasLineage": true,
+          "dataType": "DOUBLE",
+          "lineageType": "pass-through"
+        }
+      },
+      "relationName": "\"daffleshop\".\"main\".\"jaffle_revenue_trends\""
+    },
     "model.baffleshop.public_customers_from_jaffle": {
       "id": "model.baffleshop.public_customers_from_jaffle",
       "name": "public_customers_from_jaffle",
@@ -2472,132 +2998,433 @@
       },
       {
         "id": 75,
-        "source": "model.jaffleshop.public_customers",
-        "target": "model.baffleshop.public_customers_from_jaffle",
-        "sourceColumn": "customer_id",
-        "targetColumn": "customer_id"
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "order_id",
+        "targetColumn": "order_id"
       },
       {
         "id": 76,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "order_id",
+        "targetColumn": "order_id"
+      },
+      {
+        "id": 77,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "customer_id",
+        "targetColumn": "customer_id"
+      },
+      {
+        "id": 78,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "customer_id",
+        "targetColumn": "customer_id"
+      },
+      {
+        "id": 79,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "order_date",
+        "targetColumn": "order_date"
+      },
+      {
+        "id": 80,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "order_date",
+        "targetColumn": "order_date"
+      },
+      {
+        "id": 81,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "status",
+        "targetColumn": "status"
+      },
+      {
+        "id": 82,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "status",
+        "targetColumn": "status"
+      },
+      {
+        "id": 83,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "amount",
+        "targetColumn": "amount"
+      },
+      {
+        "id": 84,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "amount",
+        "targetColumn": "amount"
+      },
+      {
+        "id": 85,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "order_size",
+        "targetColumn": "order_size"
+      },
+      {
+        "id": 86,
+        "source": "model.daffleshop.local_revenue_summary",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "order_size",
+        "targetColumn": "order_size"
+      },
+      {
+        "id": 87,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "fulfillment_category",
+        "targetColumn": "fulfillment_category"
+      },
+      {
+        "id": 88,
+        "source": "model.daffleshop.local_revenue_summary",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "fulfillment_category",
+        "targetColumn": "fulfillment_category"
+      },
+      {
+        "id": 89,
+        "source": "model.daffleshop.local_revenue_summary",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "order_count",
+        "targetColumn": "order_count"
+      },
+      {
+        "id": 90,
+        "source": "model.daffleshop.local_revenue_summary",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "total_revenue",
+        "targetColumn": "total_revenue"
+      },
+      {
+        "id": 91,
+        "source": "model.jaffleshop.public_orders",
+        "target": "model.daffleshop.jaffle_order_details",
+        "sourceColumn": "order_id",
+        "targetColumn": "order_id"
+      },
+      {
+        "id": 92,
+        "source": "model.jaffleshop.public_orders",
+        "target": "model.daffleshop.jaffle_order_details",
+        "sourceColumn": "customer_id",
+        "targetColumn": "customer_id"
+      },
+      {
+        "id": 93,
+        "source": "model.jaffleshop.public_orders",
+        "target": "model.daffleshop.jaffle_order_details",
+        "sourceColumn": "order_date",
+        "targetColumn": "order_date"
+      },
+      {
+        "id": 94,
+        "source": "model.jaffleshop.public_orders",
+        "target": "model.daffleshop.jaffle_order_details",
+        "sourceColumn": "status",
+        "targetColumn": "status"
+      },
+      {
+        "id": 95,
+        "source": "model.jaffleshop.public_orders",
+        "target": "model.daffleshop.jaffle_order_details",
+        "sourceColumn": "amount",
+        "targetColumn": "amount"
+      },
+      {
+        "id": 96,
+        "source": "model.jaffleshop.public_order_status_summary",
+        "target": "model.daffleshop.jaffle_order_status",
+        "sourceColumn": "status",
+        "targetColumn": "status"
+      },
+      {
+        "id": 97,
+        "source": "model.jaffleshop.public_order_status_summary",
+        "target": "model.daffleshop.jaffle_order_status",
+        "sourceColumn": "orders_count",
+        "targetColumn": "orders_count"
+      },
+      {
+        "id": 98,
+        "source": "model.jaffleshop.public_order_status_summary",
+        "target": "model.daffleshop.jaffle_order_status",
+        "sourceColumn": "customers_count",
+        "targetColumn": "customers_count"
+      },
+      {
+        "id": 99,
+        "source": "model.jaffleshop.public_order_status_summary",
+        "target": "model.daffleshop.jaffle_order_status",
+        "sourceColumn": "total_amount",
+        "targetColumn": "total_amount"
+      },
+      {
+        "id": 100,
+        "source": "model.jaffleshop.public_order_status_summary",
+        "target": "model.daffleshop.jaffle_order_status",
+        "sourceColumn": "avg_order_value",
+        "targetColumn": "avg_order_value"
+      },
+      {
+        "id": 101,
+        "source": "model.jaffleshop.public_daily_revenue",
+        "target": "model.daffleshop.jaffle_revenue_trends",
+        "sourceColumn": "order_date",
+        "targetColumn": "order_date"
+      },
+      {
+        "id": 102,
+        "source": "model.jaffleshop.public_daily_revenue",
+        "target": "model.daffleshop.jaffle_revenue_trends",
+        "sourceColumn": "orders_count",
+        "targetColumn": "orders_count"
+      },
+      {
+        "id": 103,
+        "source": "model.jaffleshop.public_daily_revenue",
+        "target": "model.daffleshop.jaffle_revenue_trends",
+        "sourceColumn": "customers_count",
+        "targetColumn": "customers_count"
+      },
+      {
+        "id": 104,
+        "source": "model.jaffleshop.public_daily_revenue",
+        "target": "model.daffleshop.jaffle_revenue_trends",
+        "sourceColumn": "gross_revenue",
+        "targetColumn": "gross_revenue"
+      },
+      {
+        "id": 105,
+        "source": "model.jaffleshop.public_daily_revenue",
+        "target": "model.daffleshop.jaffle_revenue_trends",
+        "sourceColumn": "avg_order_value",
+        "targetColumn": "avg_order_value"
+      },
+      {
+        "id": 106,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.local_order_enrichment",
+        "sourceColumn": "order_id",
+        "targetColumn": "order_id"
+      },
+      {
+        "id": 107,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.local_order_enrichment",
+        "sourceColumn": "customer_id",
+        "targetColumn": "customer_id"
+      },
+      {
+        "id": 108,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.local_order_enrichment",
+        "sourceColumn": "order_date",
+        "targetColumn": "order_date"
+      },
+      {
+        "id": 109,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.local_order_enrichment",
+        "sourceColumn": "status",
+        "targetColumn": "status"
+      },
+      {
+        "id": 110,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.local_order_enrichment",
+        "sourceColumn": "amount",
+        "targetColumn": "amount"
+      },
+      {
+        "id": 111,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.local_order_enrichment",
+        "sourceColumn": "amount",
+        "targetColumn": "order_size"
+      },
+      {
+        "id": 112,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.local_order_enrichment",
+        "sourceColumn": "status",
+        "targetColumn": "fulfillment_category"
+      },
+      {
+        "id": 113,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.local_revenue_summary",
+        "sourceColumn": "order_size",
+        "targetColumn": "order_size"
+      },
+      {
+        "id": 114,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.local_revenue_summary",
+        "sourceColumn": "fulfillment_category",
+        "targetColumn": "fulfillment_category"
+      },
+      {
+        "id": 115,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.local_revenue_summary",
+        "sourceColumn": "amount",
+        "targetColumn": "total_revenue"
+      },
+      {
+        "id": 116,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.local_revenue_summary",
+        "sourceColumn": "amount",
+        "targetColumn": "avg_order_value"
+      },
+      {
+        "id": 117,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.local_revenue_summary",
+        "sourceColumn": "customer_id",
+        "targetColumn": "distinct_customers"
+      },
+      {
+        "id": 118,
+        "source": "model.jaffleshop.public_customers",
+        "target": "model.baffleshop.public_customers_from_jaffle",
+        "sourceColumn": "customer_id",
+        "targetColumn": "customer_id"
+      },
+      {
+        "id": 119,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.public_customers_from_jaffle",
         "sourceColumn": "first_name",
         "targetColumn": "first_name"
       },
       {
-        "id": 77,
+        "id": 120,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.public_customers_from_jaffle",
         "sourceColumn": "last_name",
         "targetColumn": "last_name"
       },
       {
-        "id": 78,
+        "id": 121,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.public_customers_from_jaffle",
         "sourceColumn": "number_of_orders",
         "targetColumn": "number_of_orders"
       },
       {
-        "id": 79,
+        "id": 122,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.public_customers_from_jaffle",
         "sourceColumn": "lifetime_value",
         "targetColumn": "lifetime_value"
       },
       {
-        "id": 80,
+        "id": 123,
         "source": "model.baffleshop.local_customer_summary",
         "target": "model.baffleshop.local_customer_segments",
         "sourceColumn": "customer_id",
         "targetColumn": "customer_id"
       },
       {
-        "id": 81,
+        "id": 124,
         "source": "model.baffleshop.local_customer_summary",
         "target": "model.baffleshop.local_customer_segments",
         "sourceColumn": "first_name",
         "targetColumn": "first_name"
       },
       {
-        "id": 82,
+        "id": 125,
         "source": "model.baffleshop.local_customer_summary",
         "target": "model.baffleshop.local_customer_segments",
         "sourceColumn": "last_name",
         "targetColumn": "last_name"
       },
       {
-        "id": 83,
+        "id": 126,
         "source": "model.baffleshop.local_customer_summary",
         "target": "model.baffleshop.local_customer_segments",
         "sourceColumn": "number_of_orders",
         "targetColumn": "number_of_orders"
       },
       {
-        "id": 84,
+        "id": 127,
         "source": "model.baffleshop.local_customer_summary",
         "target": "model.baffleshop.local_customer_segments",
         "sourceColumn": "lifetime_value",
         "targetColumn": "lifetime_value"
       },
       {
-        "id": 85,
+        "id": 128,
         "source": "model.baffleshop.local_customer_summary",
         "target": "model.baffleshop.local_customer_segments",
         "sourceColumn": "value_tier",
         "targetColumn": "value_tier"
       },
       {
-        "id": 86,
+        "id": 129,
         "source": "model.baffleshop.local_customer_summary",
         "target": "model.baffleshop.local_customer_segments",
         "sourceColumn": "number_of_orders",
         "targetColumn": "order_segment"
       },
       {
-        "id": 87,
+        "id": 130,
         "source": "model.baffleshop.jaffle_customer_metrics",
         "target": "model.baffleshop.local_customer_summary",
         "sourceColumn": "customer_id",
         "targetColumn": "customer_id"
       },
       {
-        "id": 88,
+        "id": 131,
         "source": "model.baffleshop.jaffle_customer_names",
         "target": "model.baffleshop.local_customer_summary",
         "sourceColumn": "first_name",
         "targetColumn": "first_name"
       },
       {
-        "id": 89,
+        "id": 132,
         "source": "model.baffleshop.jaffle_customer_names",
         "target": "model.baffleshop.local_customer_summary",
         "sourceColumn": "last_name",
         "targetColumn": "last_name"
       },
       {
-        "id": 90,
+        "id": 133,
         "source": "model.baffleshop.jaffle_customer_metrics",
         "target": "model.baffleshop.local_customer_summary",
         "sourceColumn": "number_of_orders",
         "targetColumn": "number_of_orders"
       },
       {
-        "id": 91,
+        "id": 134,
         "source": "model.baffleshop.jaffle_customer_metrics",
         "target": "model.baffleshop.local_customer_summary",
         "sourceColumn": "lifetime_value",
         "targetColumn": "lifetime_value"
       },
       {
-        "id": 92,
+        "id": 135,
         "source": "model.baffleshop.jaffle_customer_metrics",
         "target": "model.baffleshop.local_customer_summary",
         "sourceColumn": "value_tier",
         "targetColumn": "value_tier"
       },
       {
-        "id": 93,
+        "id": 136,
         "source": "model.baffleshop.jaffle_customer_metrics",
         "target": "model.baffleshop.local_customer_summary",
         "sourceColumn": "customer_id",
@@ -2605,7 +3432,7 @@
         "edgeType": "join"
       },
       {
-        "id": 94,
+        "id": 137,
         "source": "model.baffleshop.jaffle_customer_names",
         "target": "model.baffleshop.local_customer_summary",
         "sourceColumn": "customer_id",
@@ -2613,357 +3440,413 @@
         "edgeType": "join"
       },
       {
-        "id": 95,
+        "id": 138,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.jaffle_customer_metrics",
         "sourceColumn": "customer_id",
         "targetColumn": "customer_id"
       },
       {
-        "id": 96,
+        "id": 139,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.jaffle_customer_metrics",
         "sourceColumn": "number_of_orders",
         "targetColumn": "number_of_orders"
       },
       {
-        "id": 97,
+        "id": 140,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.jaffle_customer_metrics",
         "sourceColumn": "lifetime_value",
         "targetColumn": "lifetime_value"
       },
       {
-        "id": 98,
+        "id": 141,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.jaffle_customer_metrics",
         "sourceColumn": "lifetime_value",
         "targetColumn": "value_tier"
       },
       {
-        "id": 99,
+        "id": 142,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.jaffle_customer_names",
         "sourceColumn": "customer_id",
         "targetColumn": "customer_id"
       },
       {
-        "id": 100,
+        "id": 143,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.jaffle_customer_names",
         "sourceColumn": "first_name",
         "targetColumn": "first_name"
       },
       {
-        "id": 101,
+        "id": 144,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.jaffle_customer_names",
         "sourceColumn": "last_name",
         "targetColumn": "last_name"
       },
       {
-        "id": 102,
+        "id": 145,
         "source": "model.baffleshop.public_customers_from_jaffle",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "customer_id",
         "targetColumn": "customer_id"
       },
       {
-        "id": 103,
+        "id": 146,
         "source": "model.baffleshop.jaffle_customer_names",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "customer_id",
         "targetColumn": "customer_id"
       },
       {
-        "id": 104,
+        "id": 147,
         "source": "model.baffleshop.jaffle_customer_metrics",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "customer_id",
         "targetColumn": "customer_id"
       },
       {
-        "id": 105,
+        "id": 148,
         "source": "model.baffleshop.local_customer_segments",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "customer_id",
         "targetColumn": "customer_id"
       },
       {
-        "id": 106,
+        "id": 149,
         "source": "model.baffleshop.public_customers_from_jaffle",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "first_name",
         "targetColumn": "first_name"
       },
       {
-        "id": 107,
+        "id": 150,
         "source": "model.baffleshop.jaffle_customer_names",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "first_name",
         "targetColumn": "first_name"
       },
       {
-        "id": 108,
+        "id": 151,
         "source": "model.baffleshop.local_customer_segments",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "first_name",
         "targetColumn": "first_name"
       },
       {
-        "id": 109,
+        "id": 152,
         "source": "model.baffleshop.public_customers_from_jaffle",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "last_name",
         "targetColumn": "last_name"
       },
       {
-        "id": 110,
+        "id": 153,
         "source": "model.baffleshop.jaffle_customer_names",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "last_name",
         "targetColumn": "last_name"
       },
       {
-        "id": 111,
+        "id": 154,
         "source": "model.baffleshop.local_customer_segments",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "last_name",
         "targetColumn": "last_name"
       },
       {
-        "id": 112,
+        "id": 155,
         "source": "model.baffleshop.public_customers_from_jaffle",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "number_of_orders",
         "targetColumn": "number_of_orders"
       },
       {
-        "id": 113,
+        "id": 156,
         "source": "model.baffleshop.jaffle_customer_metrics",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "number_of_orders",
         "targetColumn": "number_of_orders"
       },
       {
-        "id": 114,
+        "id": 157,
         "source": "model.baffleshop.local_customer_segments",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "number_of_orders",
         "targetColumn": "number_of_orders"
       },
       {
-        "id": 115,
+        "id": 158,
         "source": "model.baffleshop.public_customers_from_jaffle",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "lifetime_value",
         "targetColumn": "lifetime_value"
       },
       {
-        "id": 116,
+        "id": 159,
         "source": "model.baffleshop.jaffle_customer_metrics",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "lifetime_value",
         "targetColumn": "lifetime_value"
       },
       {
-        "id": 117,
+        "id": 160,
         "source": "model.baffleshop.local_customer_segments",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "lifetime_value",
         "targetColumn": "lifetime_value"
       },
       {
-        "id": 118,
+        "id": 161,
         "source": "model.baffleshop.jaffle_customer_metrics",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "value_tier",
         "targetColumn": "value_tier"
       },
       {
-        "id": 119,
+        "id": 162,
         "source": "model.baffleshop.local_customer_segments",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "value_tier",
         "targetColumn": "value_tier"
       },
       {
-        "id": 120,
+        "id": 163,
         "source": "model.baffleshop.local_customer_segments",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "order_segment",
         "targetColumn": "order_segment"
       },
       {
-        "id": 121,
+        "id": 164,
         "source": "source.jaffleshop.jaffle_shop.raw_customers",
         "target": "model.jaffleshop.stg_customers",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 122,
+        "id": 165,
         "source": "source.jaffleshop.stripe.raw_payments",
         "target": "model.jaffleshop.stg_payments",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 123,
+        "id": 166,
         "source": "source.jaffleshop.jaffle_shop.raw_orders",
         "target": "model.jaffleshop.stg_orders",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 124,
+        "id": 167,
         "source": "model.jaffleshop.orders",
         "target": "model.jaffleshop.order_status_summary",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 125,
+        "id": 168,
         "source": "model.jaffleshop.stg_customers",
         "target": "model.jaffleshop.customers",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 126,
+        "id": 169,
         "source": "model.jaffleshop.orders",
         "target": "model.jaffleshop.customers",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 127,
+        "id": 170,
         "source": "model.jaffleshop.orders",
         "target": "model.jaffleshop.daily_revenue",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 128,
+        "id": 171,
         "source": "model.jaffleshop.stg_orders",
         "target": "model.jaffleshop.orders",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 129,
+        "id": 172,
         "source": "model.jaffleshop.stg_payments",
         "target": "model.jaffleshop.orders",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 130,
+        "id": 173,
         "source": "model.jaffleshop.public_customer_tiers",
         "target": "model.jaffleshop.public_customer_rollup",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 131,
+        "id": 174,
         "source": "model.jaffleshop.customers",
         "target": "model.jaffleshop.public_customers",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 132,
+        "id": 175,
         "source": "model.jaffleshop.orders",
         "target": "model.jaffleshop.public_orders",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 133,
+        "id": 176,
         "source": "model.jaffleshop.daily_revenue",
         "target": "model.jaffleshop.public_daily_revenue",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 134,
+        "id": 177,
         "source": "model.jaffleshop.public_customers",
         "target": "model.jaffleshop.public_customer_tiers",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 135,
+        "id": 178,
         "source": "model.jaffleshop.order_status_summary",
         "target": "model.jaffleshop.public_order_status_summary",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 136,
+        "id": 179,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "",
+        "targetColumn": ""
+      },
+      {
+        "id": 180,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "",
+        "targetColumn": ""
+      },
+      {
+        "id": 181,
+        "source": "model.daffleshop.local_revenue_summary",
+        "target": "model.daffleshop.colibri_union_lineage",
+        "sourceColumn": "",
+        "targetColumn": ""
+      },
+      {
+        "id": 182,
+        "source": "model.jaffleshop.public_orders",
+        "target": "model.daffleshop.jaffle_order_details",
+        "sourceColumn": "",
+        "targetColumn": ""
+      },
+      {
+        "id": 183,
+        "source": "model.jaffleshop.public_order_status_summary",
+        "target": "model.daffleshop.jaffle_order_status",
+        "sourceColumn": "",
+        "targetColumn": ""
+      },
+      {
+        "id": 184,
+        "source": "model.jaffleshop.public_daily_revenue",
+        "target": "model.daffleshop.jaffle_revenue_trends",
+        "sourceColumn": "",
+        "targetColumn": ""
+      },
+      {
+        "id": 185,
+        "source": "model.daffleshop.jaffle_order_details",
+        "target": "model.daffleshop.local_order_enrichment",
+        "sourceColumn": "",
+        "targetColumn": ""
+      },
+      {
+        "id": 186,
+        "source": "model.daffleshop.local_order_enrichment",
+        "target": "model.daffleshop.local_revenue_summary",
+        "sourceColumn": "",
+        "targetColumn": ""
+      },
+      {
+        "id": 187,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.public_customers_from_jaffle",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 137,
+        "id": 188,
         "source": "model.baffleshop.local_customer_summary",
         "target": "model.baffleshop.local_customer_segments",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 138,
+        "id": 189,
         "source": "model.baffleshop.jaffle_customer_metrics",
         "target": "model.baffleshop.local_customer_summary",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 139,
+        "id": 190,
         "source": "model.baffleshop.jaffle_customer_names",
         "target": "model.baffleshop.local_customer_summary",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 140,
+        "id": 191,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.jaffle_customer_metrics",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 141,
+        "id": 192,
         "source": "model.jaffleshop.public_customers",
         "target": "model.baffleshop.jaffle_customer_names",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 142,
+        "id": 193,
         "source": "model.baffleshop.public_customers_from_jaffle",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 143,
+        "id": 194,
         "source": "model.baffleshop.jaffle_customer_names",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 144,
+        "id": 195,
         "source": "model.baffleshop.jaffle_customer_metrics",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "",
         "targetColumn": ""
       },
       {
-        "id": 145,
+        "id": 196,
         "source": "model.baffleshop.local_customer_segments",
         "target": "model.baffleshop.colibri_union_lineage",
         "sourceColumn": "",
@@ -3502,6 +4385,307 @@
             "column": "avg_order_value",
             "dbt_node": "model.jaffleshop.order_status_summary",
             "lineage_type": "pass-through"
+          }
+        ]
+      },
+      "model.daffleshop.colibri_union_lineage": {
+        "order_id": [
+          {
+            "column": "order_id",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "transformation"
+          },
+          {
+            "column": "order_id",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "transformation"
+          }
+        ],
+        "customer_id": [
+          {
+            "column": "customer_id",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "transformation"
+          },
+          {
+            "column": "customer_id",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "transformation"
+          }
+        ],
+        "order_date": [
+          {
+            "column": "order_date",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "transformation"
+          },
+          {
+            "column": "order_date",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "transformation"
+          }
+        ],
+        "status": [
+          {
+            "column": "status",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "transformation"
+          },
+          {
+            "column": "status",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "transformation"
+          }
+        ],
+        "amount": [
+          {
+            "column": "amount",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "transformation"
+          },
+          {
+            "column": "amount",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "transformation"
+          }
+        ],
+        "order_size": [
+          {
+            "column": "order_size",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "transformation"
+          },
+          {
+            "column": "order_size",
+            "dbt_node": "model.daffleshop.local_revenue_summary",
+            "lineage_type": "transformation"
+          }
+        ],
+        "fulfillment_category": [
+          {
+            "column": "fulfillment_category",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "transformation"
+          },
+          {
+            "column": "fulfillment_category",
+            "dbt_node": "model.daffleshop.local_revenue_summary",
+            "lineage_type": "transformation"
+          }
+        ],
+        "order_count": [
+          {
+            "column": "order_count",
+            "dbt_node": "model.daffleshop.local_revenue_summary",
+            "lineage_type": "transformation"
+          }
+        ],
+        "total_revenue": [
+          {
+            "column": "total_revenue",
+            "dbt_node": "model.daffleshop.local_revenue_summary",
+            "lineage_type": "transformation"
+          }
+        ],
+        "record_source": []
+      },
+      "model.daffleshop.jaffle_order_details": {
+        "order_id": [
+          {
+            "column": "order_id",
+            "dbt_node": "model.jaffleshop.public_orders",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "customer_id": [
+          {
+            "column": "customer_id",
+            "dbt_node": "model.jaffleshop.public_orders",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "order_date": [
+          {
+            "column": "order_date",
+            "dbt_node": "model.jaffleshop.public_orders",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "status": [
+          {
+            "column": "status",
+            "dbt_node": "model.jaffleshop.public_orders",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "amount": [
+          {
+            "column": "amount",
+            "dbt_node": "model.jaffleshop.public_orders",
+            "lineage_type": "pass-through"
+          }
+        ]
+      },
+      "model.daffleshop.jaffle_order_status": {
+        "status": [
+          {
+            "column": "status",
+            "dbt_node": "model.jaffleshop.public_order_status_summary",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "orders_count": [
+          {
+            "column": "orders_count",
+            "dbt_node": "model.jaffleshop.public_order_status_summary",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "customers_count": [
+          {
+            "column": "customers_count",
+            "dbt_node": "model.jaffleshop.public_order_status_summary",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "total_amount": [
+          {
+            "column": "total_amount",
+            "dbt_node": "model.jaffleshop.public_order_status_summary",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "avg_order_value": [
+          {
+            "column": "avg_order_value",
+            "dbt_node": "model.jaffleshop.public_order_status_summary",
+            "lineage_type": "pass-through"
+          }
+        ]
+      },
+      "model.daffleshop.jaffle_revenue_trends": {
+        "order_date": [
+          {
+            "column": "order_date",
+            "dbt_node": "model.jaffleshop.public_daily_revenue",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "orders_count": [
+          {
+            "column": "orders_count",
+            "dbt_node": "model.jaffleshop.public_daily_revenue",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "customers_count": [
+          {
+            "column": "customers_count",
+            "dbt_node": "model.jaffleshop.public_daily_revenue",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "gross_revenue": [
+          {
+            "column": "gross_revenue",
+            "dbt_node": "model.jaffleshop.public_daily_revenue",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "avg_order_value": [
+          {
+            "column": "avg_order_value",
+            "dbt_node": "model.jaffleshop.public_daily_revenue",
+            "lineage_type": "pass-through"
+          }
+        ]
+      },
+      "model.daffleshop.local_order_enrichment": {
+        "order_id": [
+          {
+            "column": "order_id",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "customer_id": [
+          {
+            "column": "customer_id",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "order_date": [
+          {
+            "column": "order_date",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "status": [
+          {
+            "column": "status",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "amount": [
+          {
+            "column": "amount",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "order_size": [
+          {
+            "column": "amount",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "transformation"
+          }
+        ],
+        "fulfillment_category": [
+          {
+            "column": "status",
+            "dbt_node": "model.daffleshop.jaffle_order_details",
+            "lineage_type": "transformation"
+          }
+        ]
+      },
+      "model.daffleshop.local_revenue_summary": {
+        "order_size": [
+          {
+            "column": "order_size",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "fulfillment_category": [
+          {
+            "column": "fulfillment_category",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "pass-through"
+          }
+        ],
+        "order_count": [],
+        "total_revenue": [
+          {
+            "column": "amount",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "transformation"
+          }
+        ],
+        "avg_order_value": [
+          {
+            "column": "amount",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "transformation"
+          }
+        ],
+        "distinct_customers": [
+          {
+            "column": "customer_id",
+            "dbt_node": "model.daffleshop.local_order_enrichment",
+            "lineage_type": "transformation"
           }
         ]
       },
@@ -4286,6 +5470,252 @@
           }
         ]
       },
+      "model.daffleshop.jaffle_order_details": {
+        "order_id": [
+          {
+            "column": "order_id",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          },
+          {
+            "column": "order_id",
+            "dbt_node": "model.daffleshop.local_order_enrichment"
+          }
+        ],
+        "customer_id": [
+          {
+            "column": "customer_id",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          },
+          {
+            "column": "customer_id",
+            "dbt_node": "model.daffleshop.local_order_enrichment"
+          }
+        ],
+        "order_date": [
+          {
+            "column": "order_date",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          },
+          {
+            "column": "order_date",
+            "dbt_node": "model.daffleshop.local_order_enrichment"
+          }
+        ],
+        "status": [
+          {
+            "column": "status",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          },
+          {
+            "column": "status",
+            "dbt_node": "model.daffleshop.local_order_enrichment"
+          },
+          {
+            "column": "fulfillment_category",
+            "dbt_node": "model.daffleshop.local_order_enrichment"
+          }
+        ],
+        "amount": [
+          {
+            "column": "amount",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          },
+          {
+            "column": "amount",
+            "dbt_node": "model.daffleshop.local_order_enrichment"
+          },
+          {
+            "column": "order_size",
+            "dbt_node": "model.daffleshop.local_order_enrichment"
+          }
+        ]
+      },
+      "model.daffleshop.local_order_enrichment": {
+        "order_id": [
+          {
+            "column": "order_id",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          }
+        ],
+        "customer_id": [
+          {
+            "column": "customer_id",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          },
+          {
+            "column": "distinct_customers",
+            "dbt_node": "model.daffleshop.local_revenue_summary"
+          }
+        ],
+        "order_date": [
+          {
+            "column": "order_date",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          }
+        ],
+        "status": [
+          {
+            "column": "status",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          }
+        ],
+        "amount": [
+          {
+            "column": "amount",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          },
+          {
+            "column": "total_revenue",
+            "dbt_node": "model.daffleshop.local_revenue_summary"
+          },
+          {
+            "column": "avg_order_value",
+            "dbt_node": "model.daffleshop.local_revenue_summary"
+          }
+        ],
+        "order_size": [
+          {
+            "column": "order_size",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          },
+          {
+            "column": "order_size",
+            "dbt_node": "model.daffleshop.local_revenue_summary"
+          }
+        ],
+        "fulfillment_category": [
+          {
+            "column": "fulfillment_category",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          },
+          {
+            "column": "fulfillment_category",
+            "dbt_node": "model.daffleshop.local_revenue_summary"
+          }
+        ]
+      },
+      "model.daffleshop.local_revenue_summary": {
+        "order_size": [
+          {
+            "column": "order_size",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          }
+        ],
+        "fulfillment_category": [
+          {
+            "column": "fulfillment_category",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          }
+        ],
+        "order_count": [
+          {
+            "column": "order_count",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          }
+        ],
+        "total_revenue": [
+          {
+            "column": "total_revenue",
+            "dbt_node": "model.daffleshop.colibri_union_lineage"
+          }
+        ]
+      },
+      "model.jaffleshop.public_orders": {
+        "order_id": [
+          {
+            "column": "order_id",
+            "dbt_node": "model.daffleshop.jaffle_order_details"
+          }
+        ],
+        "customer_id": [
+          {
+            "column": "customer_id",
+            "dbt_node": "model.daffleshop.jaffle_order_details"
+          }
+        ],
+        "order_date": [
+          {
+            "column": "order_date",
+            "dbt_node": "model.daffleshop.jaffle_order_details"
+          }
+        ],
+        "status": [
+          {
+            "column": "status",
+            "dbt_node": "model.daffleshop.jaffle_order_details"
+          }
+        ],
+        "amount": [
+          {
+            "column": "amount",
+            "dbt_node": "model.daffleshop.jaffle_order_details"
+          }
+        ]
+      },
+      "model.jaffleshop.public_order_status_summary": {
+        "status": [
+          {
+            "column": "status",
+            "dbt_node": "model.daffleshop.jaffle_order_status"
+          }
+        ],
+        "orders_count": [
+          {
+            "column": "orders_count",
+            "dbt_node": "model.daffleshop.jaffle_order_status"
+          }
+        ],
+        "customers_count": [
+          {
+            "column": "customers_count",
+            "dbt_node": "model.daffleshop.jaffle_order_status"
+          }
+        ],
+        "total_amount": [
+          {
+            "column": "total_amount",
+            "dbt_node": "model.daffleshop.jaffle_order_status"
+          }
+        ],
+        "avg_order_value": [
+          {
+            "column": "avg_order_value",
+            "dbt_node": "model.daffleshop.jaffle_order_status"
+          }
+        ]
+      },
+      "model.jaffleshop.public_daily_revenue": {
+        "order_date": [
+          {
+            "column": "order_date",
+            "dbt_node": "model.daffleshop.jaffle_revenue_trends"
+          }
+        ],
+        "orders_count": [
+          {
+            "column": "orders_count",
+            "dbt_node": "model.daffleshop.jaffle_revenue_trends"
+          }
+        ],
+        "customers_count": [
+          {
+            "column": "customers_count",
+            "dbt_node": "model.daffleshop.jaffle_revenue_trends"
+          }
+        ],
+        "gross_revenue": [
+          {
+            "column": "gross_revenue",
+            "dbt_node": "model.daffleshop.jaffle_revenue_trends"
+          }
+        ],
+        "avg_order_value": [
+          {
+            "column": "avg_order_value",
+            "dbt_node": "model.daffleshop.jaffle_revenue_trends"
+          }
+        ]
+      },
       "model.baffleshop.local_customer_summary": {
         "customer_id": [
           {
@@ -4496,6 +5926,16 @@
           "model.baffleshop.public_customers_from_jaffle"
         ]
       },
+      "daffleshop": {
+        "main": [
+          "model.daffleshop.colibri_union_lineage",
+          "model.daffleshop.jaffle_order_details",
+          "model.daffleshop.jaffle_order_status",
+          "model.daffleshop.jaffle_revenue_trends",
+          "model.daffleshop.local_order_enrichment",
+          "model.daffleshop.local_revenue_summary"
+        ]
+      },
       "jaffleshop": {
         "main": [
           "model.jaffleshop.customers",
@@ -4567,6 +6007,20 @@
                 ]
               }
             }
+          }
+        }
+      },
+      "daffleshop": {
+        "models": {
+          "mesh": {
+            "__items__": [
+              "model.daffleshop.colibri_union_lineage",
+              "model.daffleshop.jaffle_order_details",
+              "model.daffleshop.jaffle_order_status",
+              "model.daffleshop.jaffle_revenue_trends",
+              "model.daffleshop.local_order_enrichment",
+              "model.daffleshop.local_revenue_summary"
+            ]
           }
         }
       },

@@ -2,9 +2,9 @@
   "metadata": {
     "dbt_schema_version": "https://schemas.getdbt.com/dbt/catalog/v1.json",
     "dbt_version": "1.10.22",
-    "generated_at": "2026-07-07T08:41:04.202591Z",
-    "invocation_id": "98dc92a1-2384-411d-a991-6fe01dbdec17",
-    "invocation_started_at": "2026-07-07T08:41:00.739729Z",
+    "generated_at": "2026-07-07T15:54:08.000652Z",
+    "invocation_id": "67c1d507-0b77-46f0-ab21-461257cab6bf",
+    "invocation_started_at": "2026-07-07T15:54:04.321004Z",
     "env": {}
   },
   "nodes": {
@@ -524,6 +524,11 @@
           "database": "jaffleshop",
           "schema": "main",
           "name": "public_daily_revenue"
+        },
+        {
+          "database": "daffleshop",
+          "schema": "main",
+          "name": "public_daily_revenue"
         }
       ]
     },
@@ -583,6 +588,11 @@
           "database": "jaffleshop",
           "schema": "main",
           "name": "public_order_status_summary"
+        },
+        {
+          "database": "daffleshop",
+          "schema": "main",
+          "name": "public_order_status_summary"
         }
       ]
     },
@@ -640,6 +650,11 @@
       "x_colibri_table_aliases": [
         {
           "database": "jaffleshop",
+          "schema": "main",
+          "name": "public_orders"
+        },
+        {
+          "database": "daffleshop",
           "schema": "main",
           "name": "public_orders"
         }
@@ -960,6 +975,408 @@
           "database": "jaffleshop",
           "schema": "main",
           "name": "stg_payments"
+        }
+      ]
+    },
+    "model.daffleshop.colibri_union_lineage": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "colibri_union_lineage",
+        "database": "daffleshop",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "order_id": {
+          "type": "VARCHAR",
+          "index": 1,
+          "name": "order_id",
+          "comment": null
+        },
+        "customer_id": {
+          "type": "VARCHAR",
+          "index": 2,
+          "name": "customer_id",
+          "comment": null
+        },
+        "order_date": {
+          "type": "DATE",
+          "index": 3,
+          "name": "order_date",
+          "comment": null
+        },
+        "status": {
+          "type": "VARCHAR",
+          "index": 4,
+          "name": "status",
+          "comment": null
+        },
+        "amount": {
+          "type": "DOUBLE",
+          "index": 5,
+          "name": "amount",
+          "comment": null
+        },
+        "order_size": {
+          "type": "VARCHAR",
+          "index": 6,
+          "name": "order_size",
+          "comment": null
+        },
+        "fulfillment_category": {
+          "type": "VARCHAR",
+          "index": 7,
+          "name": "fulfillment_category",
+          "comment": null
+        },
+        "order_count": {
+          "type": "BIGINT",
+          "index": 8,
+          "name": "order_count",
+          "comment": null
+        },
+        "total_revenue": {
+          "type": "DOUBLE",
+          "index": 9,
+          "name": "total_revenue",
+          "comment": null
+        },
+        "record_source": {
+          "type": "VARCHAR",
+          "index": 10,
+          "name": "record_source",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.daffleshop.colibri_union_lineage",
+      "x_colibri_table_aliases": [
+        {
+          "database": "daffleshop",
+          "schema": "main",
+          "name": "colibri_union_lineage"
+        }
+      ]
+    },
+    "model.daffleshop.jaffle_order_details": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "jaffle_order_details",
+        "database": "daffleshop",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "order_id": {
+          "type": "INTEGER",
+          "index": 1,
+          "name": "order_id",
+          "comment": null
+        },
+        "customer_id": {
+          "type": "INTEGER",
+          "index": 2,
+          "name": "customer_id",
+          "comment": null
+        },
+        "order_date": {
+          "type": "DATE",
+          "index": 3,
+          "name": "order_date",
+          "comment": null
+        },
+        "status": {
+          "type": "VARCHAR",
+          "index": 4,
+          "name": "status",
+          "comment": null
+        },
+        "amount": {
+          "type": "DOUBLE",
+          "index": 5,
+          "name": "amount",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.daffleshop.jaffle_order_details",
+      "x_colibri_table_aliases": [
+        {
+          "database": "daffleshop",
+          "schema": "main",
+          "name": "jaffle_order_details"
+        }
+      ]
+    },
+    "model.daffleshop.jaffle_order_status": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "jaffle_order_status",
+        "database": "daffleshop",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "status": {
+          "type": "VARCHAR",
+          "index": 1,
+          "name": "status",
+          "comment": null
+        },
+        "orders_count": {
+          "type": "BIGINT",
+          "index": 2,
+          "name": "orders_count",
+          "comment": null
+        },
+        "customers_count": {
+          "type": "BIGINT",
+          "index": 3,
+          "name": "customers_count",
+          "comment": null
+        },
+        "total_amount": {
+          "type": "DOUBLE",
+          "index": 4,
+          "name": "total_amount",
+          "comment": null
+        },
+        "avg_order_value": {
+          "type": "DOUBLE",
+          "index": 5,
+          "name": "avg_order_value",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.daffleshop.jaffle_order_status",
+      "x_colibri_table_aliases": [
+        {
+          "database": "daffleshop",
+          "schema": "main",
+          "name": "jaffle_order_status"
+        }
+      ]
+    },
+    "model.daffleshop.jaffle_revenue_trends": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "jaffle_revenue_trends",
+        "database": "daffleshop",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "order_date": {
+          "type": "DATE",
+          "index": 1,
+          "name": "order_date",
+          "comment": null
+        },
+        "orders_count": {
+          "type": "BIGINT",
+          "index": 2,
+          "name": "orders_count",
+          "comment": null
+        },
+        "customers_count": {
+          "type": "BIGINT",
+          "index": 3,
+          "name": "customers_count",
+          "comment": null
+        },
+        "gross_revenue": {
+          "type": "DOUBLE",
+          "index": 4,
+          "name": "gross_revenue",
+          "comment": null
+        },
+        "avg_order_value": {
+          "type": "DOUBLE",
+          "index": 5,
+          "name": "avg_order_value",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.daffleshop.jaffle_revenue_trends",
+      "x_colibri_table_aliases": [
+        {
+          "database": "daffleshop",
+          "schema": "main",
+          "name": "jaffle_revenue_trends"
+        }
+      ]
+    },
+    "model.daffleshop.local_order_enrichment": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "local_order_enrichment",
+        "database": "daffleshop",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "order_id": {
+          "type": "INTEGER",
+          "index": 1,
+          "name": "order_id",
+          "comment": null
+        },
+        "customer_id": {
+          "type": "INTEGER",
+          "index": 2,
+          "name": "customer_id",
+          "comment": null
+        },
+        "order_date": {
+          "type": "DATE",
+          "index": 3,
+          "name": "order_date",
+          "comment": null
+        },
+        "status": {
+          "type": "VARCHAR",
+          "index": 4,
+          "name": "status",
+          "comment": null
+        },
+        "amount": {
+          "type": "DOUBLE",
+          "index": 5,
+          "name": "amount",
+          "comment": null
+        },
+        "order_size": {
+          "type": "VARCHAR",
+          "index": 6,
+          "name": "order_size",
+          "comment": null
+        },
+        "fulfillment_category": {
+          "type": "VARCHAR",
+          "index": 7,
+          "name": "fulfillment_category",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.daffleshop.local_order_enrichment",
+      "x_colibri_table_aliases": [
+        {
+          "database": "daffleshop",
+          "schema": "main",
+          "name": "local_order_enrichment"
+        }
+      ]
+    },
+    "model.daffleshop.local_revenue_summary": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "local_revenue_summary",
+        "database": "daffleshop",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "order_size": {
+          "type": "VARCHAR",
+          "index": 1,
+          "name": "order_size",
+          "comment": null
+        },
+        "fulfillment_category": {
+          "type": "VARCHAR",
+          "index": 2,
+          "name": "fulfillment_category",
+          "comment": null
+        },
+        "order_count": {
+          "type": "BIGINT",
+          "index": 3,
+          "name": "order_count",
+          "comment": null
+        },
+        "total_revenue": {
+          "type": "DOUBLE",
+          "index": 4,
+          "name": "total_revenue",
+          "comment": null
+        },
+        "avg_order_value": {
+          "type": "DOUBLE",
+          "index": 5,
+          "name": "avg_order_value",
+          "comment": null
+        },
+        "distinct_customers": {
+          "type": "BIGINT",
+          "index": 6,
+          "name": "distinct_customers",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.daffleshop.local_revenue_summary",
+      "x_colibri_table_aliases": [
+        {
+          "database": "daffleshop",
+          "schema": "main",
+          "name": "local_revenue_summary"
         }
       ]
     },

@@ -2,9 +2,9 @@
   "metadata": {
     "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v12.json",
     "dbt_version": "1.10.22",
-    "generated_at": "2026-07-07T08:41:01.196288Z",
-    "invocation_id": "98dc92a1-2384-411d-a991-6fe01dbdec17",
-    "invocation_started_at": "2026-07-07T08:40:49.433132+00:00",
+    "generated_at": "2026-07-07T15:54:04.787490Z",
+    "invocation_id": "67c1d507-0b77-46f0-ab21-461257cab6bf",
+    "invocation_started_at": "2026-07-07T15:53:56.688356+00:00",
     "env": {},
     "project_name": "jaffleshop",
     "project_id": "997cf7d64ccff979e36c54fba083c6f1",
@@ -107,7 +107,7 @@
       "unrendered_config": {
         "materialized": "view"
       },
-      "created_at": 1783413651.265152,
+      "created_at": 1783439638.427659,
       "relation_name": "\"jaffleshop\".\"main\".\"stg_customers\"",
       "raw_code": "select\n    id as customer_id,\n    first_name,\n    last_name\nfrom {{ source('jaffle_shop', 'raw_customers') }}",
       "doc_blocks": [],
@@ -250,7 +250,7 @@
       "unrendered_config": {
         "materialized": "view"
       },
-      "created_at": 1783413651.2661152,
+      "created_at": 1783439638.428755,
       "relation_name": "\"jaffleshop\".\"main\".\"stg_payments\"",
       "raw_code": "select\n    id as payment_id,\n    orderid as order_id,\n    paymentmethod as payment_method,\n    amount / 100.0 as amount\nfrom {{ source('stripe', 'raw_payments') }}",
       "doc_blocks": [],
@@ -393,7 +393,7 @@
       "unrendered_config": {
         "materialized": "view"
       },
-      "created_at": 1783413651.2657018,
+      "created_at": 1783439638.428292,
       "relation_name": "\"jaffleshop\".\"main\".\"stg_orders\"",
       "raw_code": "select\n    id as order_id,\n    user_id as customer_id,\n    order_date,\n    status\nfrom {{ source('jaffle_shop', 'raw_orders') }}",
       "doc_blocks": [],
@@ -521,7 +521,7 @@
       "unrendered_config": {
         "materialized": "table"
       },
-      "created_at": 1783413651.345516,
+      "created_at": 1783439638.520936,
       "relation_name": "\"jaffleshop\".\"main\".\"order_status_summary\"",
       "raw_code": "with orders as (\n    select * from {{ ref('orders') }}\n),\n\nfinal as (\n    select\n        status,\n        count(order_id) as orders_count,\n        count(distinct customer_id) as customers_count,\n        sum(amount) as total_amount,\n        avg(amount) as avg_order_value\n    from orders\n    group by 1\n)\n\nselect * from final",
       "doc_blocks": [],
@@ -650,7 +650,7 @@
       "unrendered_config": {
         "materialized": "table"
       },
-      "created_at": 1783413651.344692,
+      "created_at": 1783439638.519973,
       "relation_name": "\"jaffleshop\".\"main\".\"customers\"",
       "raw_code": "with customers as (\n    select * from {{ ref('stg_customers') }}\n),\n\norders as (\n    select * from {{ ref('orders') }}\n),\n\ncustomer_orders as (\n    select\n        customer_id,\n        min(order_date) as first_order_date,\n        max(order_date) as most_recent_order_date,\n        count(order_id) as number_of_orders,\n        sum(amount) as lifetime_value\n    from orders\n    group by 1\n),\n\nfinal as (\n    select\n        customers.customer_id,\n        customers.first_name,\n        customers.last_name,\n        customer_orders.first_order_date,\n        customer_orders.most_recent_order_date,\n        coalesce(customer_orders.number_of_orders, 0) as number_of_orders,\n        coalesce(customer_orders.lifetime_value, 0) as lifetime_value\n    from customers\n    left join customer_orders on customers.customer_id = customer_orders.customer_id\n)\n\nselect * from final",
       "doc_blocks": [],
@@ -785,7 +785,7 @@
       "unrendered_config": {
         "materialized": "table"
       },
-      "created_at": 1783413651.3451571,
+      "created_at": 1783439638.520555,
       "relation_name": "\"jaffleshop\".\"main\".\"daily_revenue\"",
       "raw_code": "with orders as (\n    select * from {{ ref('orders') }}\n),\n\nfinal as (\n    select\n        order_date,\n        count(order_id) as orders_count,\n        count(distinct customer_id) as customers_count,\n        sum(amount) as gross_revenue,\n        avg(amount) as avg_order_value\n    from orders\n    group by 1\n)\n\nselect * from final",
       "doc_blocks": [],
@@ -929,7 +929,7 @@
       "unrendered_config": {
         "materialized": "table"
       },
-      "created_at": 1783413651.344438,
+      "created_at": 1783439638.51966,
       "relation_name": "\"jaffleshop\".\"main\".\"orders\"",
       "raw_code": "with orders as (\n    select * from {{ ref('stg_orders') }}\n),\n\npayments as (\n    select\n        order_id,\n        sum(case when payment_method = 'bank_transfer' then amount else 0 end) as bank_transfer_amount,\n        sum(case when payment_method = 'credit_card' then amount else 0 end) as credit_card_amount,\n        sum(case when payment_method = 'coupon' then amount else 0 end) as coupon_amount,\n        sum(case when payment_method = 'gift_card' then amount else 0 end) as gift_card_amount,\n        sum(amount) as amount\n    from {{ ref('stg_payments') }}\n    group by 1\n),\n\nfinal as (\n    select\n        orders.order_id,\n        orders.customer_id,\n        orders.order_date,\n        orders.status,\n        coalesce(payments.amount, 0) as amount,\n        payments.bank_transfer_amount,\n        payments.credit_card_amount,\n        payments.coupon_amount,\n        payments.gift_card_amount\n    from orders\n    left join payments on orders.order_id = payments.order_id\n)\n\nselect * from final",
       "doc_blocks": [],
@@ -1048,7 +1048,7 @@
       "unrendered_config": {
         "materialized": "view"
       },
-      "created_at": 1783413651.1314151,
+      "created_at": 1783439638.272053,
       "relation_name": "\"jaffleshop\".\"main\".\"public_customer_rollup\"",
       "raw_code": "select\n    customer_tier,\n    count(*) as customer_count,\n    avg(lifetime_value) as avg_lifetime_value,\n    avg(number_of_orders) as avg_orders_per_customer,\n    1 as temp\nfrom {{ ref('public_customer_tiers') }}\ngroup by 1",
       "doc_blocks": [],
@@ -1176,7 +1176,7 @@
         "materialized": "view",
         "access": "public"
       },
-      "created_at": 1783413651.3546739,
+      "created_at": 1783439638.5309818,
       "relation_name": "\"jaffleshop\".\"main\".\"public_customers\"",
       "raw_code": "select\n    customer_id,\n    first_name,\n    last_name,\n    first_order_date,\n    most_recent_order_date,\n    number_of_orders,\n    lifetime_value\nfrom {{ ref('customers') }}",
       "doc_blocks": [],
@@ -1307,7 +1307,7 @@
         "materialized": "view",
         "access": "public"
       },
-      "created_at": 1783413651.3556638,
+      "created_at": 1783439638.53201,
       "relation_name": "\"jaffleshop\".\"main\".\"public_orders\"",
       "raw_code": "select\n    order_id,\n    customer_id,\n    order_date,\n    status,\n    amount\nfrom {{ ref('orders') }}",
       "doc_blocks": [],
@@ -1347,7 +1347,8 @@
       ],
       "time_spine": null,
       "x_colibri_relation_aliases": [
-        "\"jaffleshop\".\"main\".\"public_orders\""
+        "\"jaffleshop\".\"main\".\"public_orders\"",
+        "\"daffleshop\".\"main\".\"public_orders\""
       ]
     },
     "model.jaffleshop.public_daily_revenue": {
@@ -1437,7 +1438,7 @@
         "materialized": "view",
         "access": "public"
       },
-      "created_at": 1783413651.356768,
+      "created_at": 1783439638.533139,
       "relation_name": "\"jaffleshop\".\"main\".\"public_daily_revenue\"",
       "raw_code": "select\n    order_date,\n    orders_count,\n    customers_count,\n    gross_revenue,\n    avg_order_value\nfrom {{ ref('daily_revenue') }}",
       "doc_blocks": [],
@@ -1477,7 +1478,8 @@
       ],
       "time_spine": null,
       "x_colibri_relation_aliases": [
-        "\"jaffleshop\".\"main\".\"public_daily_revenue\""
+        "\"jaffleshop\".\"main\".\"public_daily_revenue\"",
+        "\"daffleshop\".\"main\".\"public_daily_revenue\""
       ]
     },
     "model.jaffleshop.public_customer_tiers": {
@@ -1550,7 +1552,7 @@
       "unrendered_config": {
         "materialized": "view"
       },
-      "created_at": 1783413651.1363552,
+      "created_at": 1783439638.277706,
       "relation_name": "\"jaffleshop\".\"main\".\"public_customer_tiers\"",
       "raw_code": "select\n    customer_id,\n    case\n        when lifetime_value >= 100 then 'vip'\n        when lifetime_value >= 40 then 'regular'\n        else 'new'\n    end as customer_tier,\n    lifetime_value,\n    number_of_orders\nfrom {{ ref('public_customers') }}",
       "doc_blocks": [],
@@ -1678,7 +1680,7 @@
         "materialized": "view",
         "access": "public"
       },
-      "created_at": 1783413651.357755,
+      "created_at": 1783439638.534206,
       "relation_name": "\"jaffleshop\".\"main\".\"public_order_status_summary\"",
       "raw_code": "select\n    status,\n    orders_count,\n    customers_count,\n    total_amount,\n    avg_order_value\nfrom {{ ref('order_status_summary') }}",
       "doc_blocks": [],
@@ -1718,7 +1720,8 @@
       ],
       "time_spine": null,
       "x_colibri_relation_aliases": [
-        "\"jaffleshop\".\"main\".\"public_order_status_summary\""
+        "\"jaffleshop\".\"main\".\"public_order_status_summary\"",
+        "\"daffleshop\".\"main\".\"public_order_status_summary\""
       ]
     },
     "seed.jaffleshop.raw_customers": {
@@ -1790,7 +1793,7 @@
       "unrendered_config": {
         "quote_columns": false
       },
-      "created_at": 1783413651.194345,
+      "created_at": 1783439638.3468192,
       "relation_name": "\"jaffleshop\".\"main\".\"raw_customers\"",
       "raw_code": "",
       "doc_blocks": [],
@@ -1871,7 +1874,7 @@
       "unrendered_config": {
         "quote_columns": false
       },
-      "created_at": 1783413651.195838,
+      "created_at": 1783439638.34829,
       "relation_name": "\"jaffleshop\".\"main\".\"raw_orders\"",
       "raw_code": "",
       "doc_blocks": [],
@@ -1952,7 +1955,7 @@
       "unrendered_config": {
         "quote_columns": false
       },
-      "created_at": 1783413651.197153,
+      "created_at": 1783439638.349785,
       "relation_name": "\"jaffleshop\".\"main\".\"raw_payments\"",
       "raw_code": "",
       "doc_blocks": [],
@@ -2013,7 +2016,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.301379,
+      "created_at": 1783439638.470403,
       "relation_name": null,
       "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -2107,7 +2110,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.302377,
+      "created_at": 1783439638.4715729,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -2201,7 +2204,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.3032398,
+      "created_at": 1783439638.472557,
       "relation_name": null,
       "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -2295,7 +2298,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.304117,
+      "created_at": 1783439638.473505,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -2389,7 +2392,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.305011,
+      "created_at": 1783439638.474452,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -2483,7 +2486,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.305944,
+      "created_at": 1783439638.475588,
       "relation_name": null,
       "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -2577,7 +2580,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.306765,
+      "created_at": 1783439638.476564,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -2671,7 +2674,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.3076422,
+      "created_at": 1783439638.477528,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -2765,7 +2768,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.345949,
+      "created_at": 1783439638.5214772,
       "relation_name": null,
       "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -2859,7 +2862,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.346827,
+      "created_at": 1783439638.522472,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -2953,7 +2956,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.3477068,
+      "created_at": 1783439638.5233438,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -3047,7 +3050,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.348594,
+      "created_at": 1783439638.524247,
       "relation_name": null,
       "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -3141,7 +3144,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.349504,
+      "created_at": 1783439638.5252109,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -3235,7 +3238,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.350343,
+      "created_at": 1783439638.5261161,
       "relation_name": null,
       "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -3329,7 +3332,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.3512168,
+      "created_at": 1783439638.5270169,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -3423,7 +3426,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.352103,
+      "created_at": 1783439638.527916,
       "relation_name": null,
       "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -3517,7 +3520,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.353028,
+      "created_at": 1783439638.5288582,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -3611,7 +3614,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.358155,
+      "created_at": 1783439638.5347059,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -3705,7 +3708,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.359016,
+      "created_at": 1783439638.535637,
       "relation_name": null,
       "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -3799,7 +3802,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.359918,
+      "created_at": 1783439638.536545,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -3893,7 +3896,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.360787,
+      "created_at": 1783439638.5374389,
       "relation_name": null,
       "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -3987,7 +3990,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.3616672,
+      "created_at": 1783439638.538393,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -4081,7 +4084,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.362496,
+      "created_at": 1783439638.539509,
       "relation_name": null,
       "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -4175,7 +4178,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.363393,
+      "created_at": 1783439638.540555,
       "relation_name": null,
       "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -4269,7 +4272,7 @@
       "patch_path": null,
       "build_path": null,
       "unrendered_config": {},
-      "created_at": 1783413651.364274,
+      "created_at": 1783439638.5414631,
       "relation_name": null,
       "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
       "doc_blocks": [],
@@ -4310,6 +4313,1533 @@
         "kwargs": {
           "column_name": "status",
           "model": "{{ get_where_subquery(ref('public_order_status_summary')) }}"
+        },
+        "namespace": null
+      }
+    },
+    "model.daffleshop.colibri_union_lineage": {
+      "database": "daffleshop",
+      "schema": "main",
+      "name": "colibri_union_lineage",
+      "resource_type": "model",
+      "package_name": "daffleshop",
+      "path": "mesh/colibri_union_lineage.sql",
+      "original_file_path": "models/mesh/colibri_union_lineage.sql",
+      "unique_id": "model.daffleshop.colibri_union_lineage",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "colibri_union_lineage"
+      ],
+      "alias": "colibri_union_lineage",
+      "checksum": {
+        "name": "sha256",
+        "checksum": "eda29a1d86999985a6d7da7d059b5f8756e6f5a35931c3439c383c273f54837f"
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": null,
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "table",
+        "incremental_strategy": null,
+        "batch_size": null,
+        "lookback": 1,
+        "begin": null,
+        "persist_docs": {},
+        "post-hook": [],
+        "pre-hook": [],
+        "quoting": {},
+        "column_types": {},
+        "full_refresh": null,
+        "unique_key": null,
+        "on_schema_change": "ignore",
+        "on_configuration_change": "apply",
+        "grants": {},
+        "packages": [],
+        "docs": {
+          "show": true,
+          "node_color": null
+        },
+        "contract": {
+          "enforced": false,
+          "alias_types": true
+        },
+        "event_time": null,
+        "concurrent_batches": null,
+        "access": "protected",
+        "freshness": null
+      },
+      "tags": [],
+      "description": "",
+      "columns": {
+        "record_source": {
+          "name": "record_source",
+          "description": "",
+          "meta": {},
+          "data_type": null,
+          "constraints": [],
+          "quote": null,
+          "config": {
+            "meta": {},
+            "tags": []
+          },
+          "tags": [],
+          "granularity": null,
+          "doc_blocks": []
+        }
+      },
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": "daffleshop://models/mesh/mesh_schema.yml",
+      "build_path": null,
+      "unrendered_config": {
+        "materialized": "table"
+      },
+      "created_at": 1783439638.724833,
+      "relation_name": "\"daffleshop\".\"main\".\"colibri_union_lineage\"",
+      "raw_code": "-- Union lineage model for Colibri cross-model traceability\nwith from_order_details as (\n    select\n        order_id,\n        customer_id,\n        order_date,\n        status,\n        amount,\n        cast(null as varchar) as order_size,\n        cast(null as varchar) as fulfillment_category,\n        cast(null as bigint) as order_count,\n        cast(null as double) as total_revenue,\n        'jaffle_order_details' as record_source\n    from {{ ref('jaffle_order_details') }}\n),\nfrom_order_enrichment as (\n    select\n        order_id,\n        customer_id,\n        order_date,\n        status,\n        amount,\n        order_size,\n        fulfillment_category,\n        cast(null as bigint) as order_count,\n        cast(null as double) as total_revenue,\n        'local_order_enrichment' as record_source\n    from {{ ref('local_order_enrichment') }}\n),\nfrom_revenue_summary as (\n    select\n        cast(null as varchar) as order_id,\n        cast(null as varchar) as customer_id,\n        cast(null as date) as order_date,\n        cast(null as varchar) as status,\n        cast(null as double) as amount,\n        order_size,\n        fulfillment_category,\n        order_count,\n        total_revenue,\n        'local_revenue_summary' as record_source\n    from {{ ref('local_revenue_summary') }}\n)\n\nselect * from from_order_details\nunion all\nselect * from from_order_enrichment\nunion all\nselect * from from_revenue_summary",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [
+        {
+          "name": "jaffle_order_details",
+          "package": null,
+          "version": null
+        },
+        {
+          "name": "local_order_enrichment",
+          "package": null,
+          "version": null
+        },
+        {
+          "name": "local_revenue_summary",
+          "package": null,
+          "version": null
+        }
+      ],
+      "sources": [],
+      "metrics": [],
+      "depends_on": {
+        "macros": [],
+        "nodes": [
+          "model.daffleshop.jaffle_order_details",
+          "model.daffleshop.local_order_enrichment",
+          "model.daffleshop.local_revenue_summary"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/colibri_union_lineage.sql",
+      "compiled": true,
+      "compiled_code": "-- Union lineage model for Colibri cross-model traceability\nwith from_order_details as (\n    select\n        order_id,\n        customer_id,\n        order_date,\n        status,\n        amount,\n        cast(null as varchar) as order_size,\n        cast(null as varchar) as fulfillment_category,\n        cast(null as bigint) as order_count,\n        cast(null as double) as total_revenue,\n        'jaffle_order_details' as record_source\n    from \"daffleshop\".\"main\".\"jaffle_order_details\"\n),\nfrom_order_enrichment as (\n    select\n        order_id,\n        customer_id,\n        order_date,\n        status,\n        amount,\n        order_size,\n        fulfillment_category,\n        cast(null as bigint) as order_count,\n        cast(null as double) as total_revenue,\n        'local_order_enrichment' as record_source\n    from \"daffleshop\".\"main\".\"local_order_enrichment\"\n),\nfrom_revenue_summary as (\n    select\n        cast(null as varchar) as order_id,\n        cast(null as varchar) as customer_id,\n        cast(null as date) as order_date,\n        cast(null as varchar) as status,\n        cast(null as double) as amount,\n        order_size,\n        fulfillment_category,\n        order_count,\n        total_revenue,\n        'local_revenue_summary' as record_source\n    from \"daffleshop\".\"main\".\"local_revenue_summary\"\n)\n\nselect * from from_order_details\nunion all\nselect * from from_order_enrichment\nunion all\nselect * from from_revenue_summary",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "access": "protected",
+      "constraints": [],
+      "version": null,
+      "latest_version": null,
+      "deprecation_date": null,
+      "primary_key": [],
+      "time_spine": null,
+      "x_colibri_relation_aliases": [
+        "\"daffleshop\".\"main\".\"colibri_union_lineage\""
+      ]
+    },
+    "model.daffleshop.jaffle_order_details": {
+      "database": "daffleshop",
+      "schema": "main",
+      "name": "jaffle_order_details",
+      "resource_type": "model",
+      "package_name": "daffleshop",
+      "path": "mesh/jaffle_order_details.sql",
+      "original_file_path": "models/mesh/jaffle_order_details.sql",
+      "unique_id": "model.daffleshop.jaffle_order_details",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "jaffle_order_details"
+      ],
+      "alias": "jaffle_order_details",
+      "checksum": {
+        "name": "sha256",
+        "checksum": "f4bf3f3f276dde2a8fe2dbe5d8680aa030a45bb30757f6c736ada37a1df472a3"
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": null,
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "table",
+        "incremental_strategy": null,
+        "batch_size": null,
+        "lookback": 1,
+        "begin": null,
+        "persist_docs": {},
+        "post-hook": [],
+        "pre-hook": [],
+        "quoting": {},
+        "column_types": {},
+        "full_refresh": null,
+        "unique_key": null,
+        "on_schema_change": "ignore",
+        "on_configuration_change": "apply",
+        "grants": {},
+        "packages": [],
+        "docs": {
+          "show": true,
+          "node_color": null
+        },
+        "contract": {
+          "enforced": false,
+          "alias_types": true
+        },
+        "event_time": null,
+        "concurrent_batches": null,
+        "access": "protected",
+        "freshness": null
+      },
+      "tags": [],
+      "description": "",
+      "columns": {
+        "order_id": {
+          "name": "order_id",
+          "description": "",
+          "meta": {},
+          "data_type": null,
+          "constraints": [],
+          "quote": null,
+          "config": {
+            "meta": {},
+            "tags": []
+          },
+          "tags": [],
+          "granularity": null,
+          "doc_blocks": []
+        }
+      },
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": "daffleshop://models/mesh/mesh_schema.yml",
+      "build_path": null,
+      "unrendered_config": {
+        "materialized": "table"
+      },
+      "created_at": 1783439638.722688,
+      "relation_name": "\"daffleshop\".\"main\".\"jaffle_order_details\"",
+      "raw_code": "-- Raw order data from jaffleshop public model\nselect\n    order_id,\n    customer_id,\n    order_date,\n    status,\n    amount\nfrom {{ source('jaffleshop', 'public_orders') }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [],
+      "sources": [
+        [
+          "jaffleshop",
+          "public_orders"
+        ]
+      ],
+      "metrics": [],
+      "depends_on": {
+        "macros": [],
+        "nodes": [
+          "model.jaffleshop.public_orders"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/jaffle_order_details.sql",
+      "compiled": true,
+      "compiled_code": "-- Raw order data from jaffleshop public model\nselect\n    order_id,\n    customer_id,\n    order_date,\n    status,\n    amount\nfrom \"daffleshop\".\"main\".\"public_orders\"",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "access": "protected",
+      "constraints": [],
+      "version": null,
+      "latest_version": null,
+      "deprecation_date": null,
+      "primary_key": [
+        "order_id"
+      ],
+      "time_spine": null,
+      "x_colibri_relation_aliases": [
+        "\"daffleshop\".\"main\".\"jaffle_order_details\""
+      ]
+    },
+    "model.daffleshop.jaffle_order_status": {
+      "database": "daffleshop",
+      "schema": "main",
+      "name": "jaffle_order_status",
+      "resource_type": "model",
+      "package_name": "daffleshop",
+      "path": "mesh/jaffle_order_status.sql",
+      "original_file_path": "models/mesh/jaffle_order_status.sql",
+      "unique_id": "model.daffleshop.jaffle_order_status",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "jaffle_order_status"
+      ],
+      "alias": "jaffle_order_status",
+      "checksum": {
+        "name": "sha256",
+        "checksum": "0d1d8fb9f3067a0693e09a234cf39ef5aed2c064a1a012b9a8cd3371078dc316"
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": null,
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "table",
+        "incremental_strategy": null,
+        "batch_size": null,
+        "lookback": 1,
+        "begin": null,
+        "persist_docs": {},
+        "post-hook": [],
+        "pre-hook": [],
+        "quoting": {},
+        "column_types": {},
+        "full_refresh": null,
+        "unique_key": null,
+        "on_schema_change": "ignore",
+        "on_configuration_change": "apply",
+        "grants": {},
+        "packages": [],
+        "docs": {
+          "show": true,
+          "node_color": null
+        },
+        "contract": {
+          "enforced": false,
+          "alias_types": true
+        },
+        "event_time": null,
+        "concurrent_batches": null,
+        "access": "protected",
+        "freshness": null
+      },
+      "tags": [],
+      "description": "",
+      "columns": {
+        "status": {
+          "name": "status",
+          "description": "",
+          "meta": {},
+          "data_type": null,
+          "constraints": [],
+          "quote": null,
+          "config": {
+            "meta": {},
+            "tags": []
+          },
+          "tags": [],
+          "granularity": null,
+          "doc_blocks": []
+        }
+      },
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": "daffleshop://models/mesh/mesh_schema.yml",
+      "build_path": null,
+      "unrendered_config": {
+        "materialized": "table"
+      },
+      "created_at": 1783439638.723705,
+      "relation_name": "\"daffleshop\".\"main\".\"jaffle_order_status\"",
+      "raw_code": "-- Order status summary from jaffleshop public model\nselect\n    status,\n    orders_count,\n    customers_count,\n    total_amount,\n    avg_order_value\nfrom {{ source('jaffleshop', 'public_order_status_summary') }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [],
+      "sources": [
+        [
+          "jaffleshop",
+          "public_order_status_summary"
+        ]
+      ],
+      "metrics": [],
+      "depends_on": {
+        "macros": [],
+        "nodes": [
+          "model.jaffleshop.public_order_status_summary"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/jaffle_order_status.sql",
+      "compiled": true,
+      "compiled_code": "-- Order status summary from jaffleshop public model\nselect\n    status,\n    orders_count,\n    customers_count,\n    total_amount,\n    avg_order_value\nfrom \"daffleshop\".\"main\".\"public_order_status_summary\"",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "access": "protected",
+      "constraints": [],
+      "version": null,
+      "latest_version": null,
+      "deprecation_date": null,
+      "primary_key": [],
+      "time_spine": null,
+      "x_colibri_relation_aliases": [
+        "\"daffleshop\".\"main\".\"jaffle_order_status\""
+      ]
+    },
+    "model.daffleshop.jaffle_revenue_trends": {
+      "database": "daffleshop",
+      "schema": "main",
+      "name": "jaffle_revenue_trends",
+      "resource_type": "model",
+      "package_name": "daffleshop",
+      "path": "mesh/jaffle_revenue_trends.sql",
+      "original_file_path": "models/mesh/jaffle_revenue_trends.sql",
+      "unique_id": "model.daffleshop.jaffle_revenue_trends",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "jaffle_revenue_trends"
+      ],
+      "alias": "jaffle_revenue_trends",
+      "checksum": {
+        "name": "sha256",
+        "checksum": "cd89b2699030a40860ed97352a146c81a36f421968ea61e8db2354fe666ba3f7"
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": null,
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "table",
+        "incremental_strategy": null,
+        "batch_size": null,
+        "lookback": 1,
+        "begin": null,
+        "persist_docs": {},
+        "post-hook": [],
+        "pre-hook": [],
+        "quoting": {},
+        "column_types": {},
+        "full_refresh": null,
+        "unique_key": null,
+        "on_schema_change": "ignore",
+        "on_configuration_change": "apply",
+        "grants": {},
+        "packages": [],
+        "docs": {
+          "show": true,
+          "node_color": null
+        },
+        "contract": {
+          "enforced": false,
+          "alias_types": true
+        },
+        "event_time": null,
+        "concurrent_batches": null,
+        "access": "protected",
+        "freshness": null
+      },
+      "tags": [],
+      "description": "",
+      "columns": {
+        "order_date": {
+          "name": "order_date",
+          "description": "",
+          "meta": {},
+          "data_type": null,
+          "constraints": [],
+          "quote": null,
+          "config": {
+            "meta": {},
+            "tags": []
+          },
+          "tags": [],
+          "granularity": null,
+          "doc_blocks": []
+        }
+      },
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": "daffleshop://models/mesh/mesh_schema.yml",
+      "build_path": null,
+      "unrendered_config": {
+        "materialized": "table"
+      },
+      "created_at": 1783439638.723284,
+      "relation_name": "\"daffleshop\".\"main\".\"jaffle_revenue_trends\"",
+      "raw_code": "-- Daily revenue trends from jaffleshop public model\nselect\n    order_date,\n    orders_count,\n    customers_count,\n    gross_revenue,\n    avg_order_value\nfrom {{ source('jaffleshop', 'public_daily_revenue') }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [],
+      "sources": [
+        [
+          "jaffleshop",
+          "public_daily_revenue"
+        ]
+      ],
+      "metrics": [],
+      "depends_on": {
+        "macros": [],
+        "nodes": [
+          "model.jaffleshop.public_daily_revenue"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/jaffle_revenue_trends.sql",
+      "compiled": true,
+      "compiled_code": "-- Daily revenue trends from jaffleshop public model\nselect\n    order_date,\n    orders_count,\n    customers_count,\n    gross_revenue,\n    avg_order_value\nfrom \"daffleshop\".\"main\".\"public_daily_revenue\"",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "access": "protected",
+      "constraints": [],
+      "version": null,
+      "latest_version": null,
+      "deprecation_date": null,
+      "primary_key": [],
+      "time_spine": null,
+      "x_colibri_relation_aliases": [
+        "\"daffleshop\".\"main\".\"jaffle_revenue_trends\""
+      ]
+    },
+    "model.daffleshop.local_order_enrichment": {
+      "database": "daffleshop",
+      "schema": "main",
+      "name": "local_order_enrichment",
+      "resource_type": "model",
+      "package_name": "daffleshop",
+      "path": "mesh/local_order_enrichment.sql",
+      "original_file_path": "models/mesh/local_order_enrichment.sql",
+      "unique_id": "model.daffleshop.local_order_enrichment",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "local_order_enrichment"
+      ],
+      "alias": "local_order_enrichment",
+      "checksum": {
+        "name": "sha256",
+        "checksum": "16414ed8ac966553a7816446482d45cc1e477f8bf6d9f0debf9d5c8fe7280467"
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": null,
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "table",
+        "incremental_strategy": null,
+        "batch_size": null,
+        "lookback": 1,
+        "begin": null,
+        "persist_docs": {},
+        "post-hook": [],
+        "pre-hook": [],
+        "quoting": {},
+        "column_types": {},
+        "full_refresh": null,
+        "unique_key": null,
+        "on_schema_change": "ignore",
+        "on_configuration_change": "apply",
+        "grants": {},
+        "packages": [],
+        "docs": {
+          "show": true,
+          "node_color": null
+        },
+        "contract": {
+          "enforced": false,
+          "alias_types": true
+        },
+        "event_time": null,
+        "concurrent_batches": null,
+        "access": "protected",
+        "freshness": null
+      },
+      "tags": [],
+      "description": "",
+      "columns": {
+        "order_id": {
+          "name": "order_id",
+          "description": "",
+          "meta": {},
+          "data_type": null,
+          "constraints": [],
+          "quote": null,
+          "config": {
+            "meta": {},
+            "tags": []
+          },
+          "tags": [],
+          "granularity": null,
+          "doc_blocks": []
+        }
+      },
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": "daffleshop://models/mesh/mesh_schema.yml",
+      "build_path": null,
+      "unrendered_config": {
+        "materialized": "table"
+      },
+      "created_at": 1783439638.7239811,
+      "relation_name": "\"daffleshop\".\"main\".\"local_order_enrichment\"",
+      "raw_code": "-- Enrich orders with size and recency categories\nselect\n    order_id,\n    customer_id,\n    order_date,\n    status,\n    amount,\n    case\n        when amount >= 30 then 'large'\n        when amount >= 15 then 'medium'\n        else 'small'\n    end as order_size,\n    case\n        when status = 'return_pending' or status = 'returned' then 'returned'\n        when status = 'shipped' or status = 'completed' then 'fulfilled'\n        else 'in_progress'\n    end as fulfillment_category\nfrom {{ ref('jaffle_order_details') }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [
+        {
+          "name": "jaffle_order_details",
+          "package": null,
+          "version": null
+        }
+      ],
+      "sources": [],
+      "metrics": [],
+      "depends_on": {
+        "macros": [],
+        "nodes": [
+          "model.daffleshop.jaffle_order_details"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/local_order_enrichment.sql",
+      "compiled": true,
+      "compiled_code": "-- Enrich orders with size and recency categories\nselect\n    order_id,\n    customer_id,\n    order_date,\n    status,\n    amount,\n    case\n        when amount >= 30 then 'large'\n        when amount >= 15 then 'medium'\n        else 'small'\n    end as order_size,\n    case\n        when status = 'return_pending' or status = 'returned' then 'returned'\n        when status = 'shipped' or status = 'completed' then 'fulfilled'\n        else 'in_progress'\n    end as fulfillment_category\nfrom \"daffleshop\".\"main\".\"jaffle_order_details\"",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "access": "protected",
+      "constraints": [],
+      "version": null,
+      "latest_version": null,
+      "deprecation_date": null,
+      "primary_key": [
+        "order_id"
+      ],
+      "time_spine": null,
+      "x_colibri_relation_aliases": [
+        "\"daffleshop\".\"main\".\"local_order_enrichment\""
+      ]
+    },
+    "model.daffleshop.local_revenue_summary": {
+      "database": "daffleshop",
+      "schema": "main",
+      "name": "local_revenue_summary",
+      "resource_type": "model",
+      "package_name": "daffleshop",
+      "path": "mesh/local_revenue_summary.sql",
+      "original_file_path": "models/mesh/local_revenue_summary.sql",
+      "unique_id": "model.daffleshop.local_revenue_summary",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "local_revenue_summary"
+      ],
+      "alias": "local_revenue_summary",
+      "checksum": {
+        "name": "sha256",
+        "checksum": "dd5ffc6a1dd025fafc06b9c371426d74af5d065b04dfbba153b49155791d12b9"
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": null,
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "table",
+        "incremental_strategy": null,
+        "batch_size": null,
+        "lookback": 1,
+        "begin": null,
+        "persist_docs": {},
+        "post-hook": [],
+        "pre-hook": [],
+        "quoting": {},
+        "column_types": {},
+        "full_refresh": null,
+        "unique_key": null,
+        "on_schema_change": "ignore",
+        "on_configuration_change": "apply",
+        "grants": {},
+        "packages": [],
+        "docs": {
+          "show": true,
+          "node_color": null
+        },
+        "contract": {
+          "enforced": false,
+          "alias_types": true
+        },
+        "event_time": null,
+        "concurrent_batches": null,
+        "access": "protected",
+        "freshness": null
+      },
+      "tags": [],
+      "description": "",
+      "columns": {
+        "order_size": {
+          "name": "order_size",
+          "description": "",
+          "meta": {},
+          "data_type": null,
+          "constraints": [],
+          "quote": null,
+          "config": {
+            "meta": {},
+            "tags": []
+          },
+          "tags": [],
+          "granularity": null,
+          "doc_blocks": []
+        }
+      },
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": "daffleshop://models/mesh/mesh_schema.yml",
+      "build_path": null,
+      "unrendered_config": {
+        "materialized": "table"
+      },
+      "created_at": 1783439638.7244391,
+      "relation_name": "\"daffleshop\".\"main\".\"local_revenue_summary\"",
+      "raw_code": "-- Aggregate revenue by order size and category\nselect\n    order_size,\n    fulfillment_category,\n    count(*) as order_count,\n    sum(amount) as total_revenue,\n    avg(amount) as avg_order_value,\n    count(distinct customer_id) as distinct_customers\nfrom {{ ref('local_order_enrichment') }}\ngroup by 1, 2",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [
+        {
+          "name": "local_order_enrichment",
+          "package": null,
+          "version": null
+        }
+      ],
+      "sources": [],
+      "metrics": [],
+      "depends_on": {
+        "macros": [],
+        "nodes": [
+          "model.daffleshop.local_order_enrichment"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/local_revenue_summary.sql",
+      "compiled": true,
+      "compiled_code": "-- Aggregate revenue by order size and category\nselect\n    order_size,\n    fulfillment_category,\n    count(*) as order_count,\n    sum(amount) as total_revenue,\n    avg(amount) as avg_order_value,\n    count(distinct customer_id) as distinct_customers\nfrom \"daffleshop\".\"main\".\"local_order_enrichment\"\ngroup by 1, 2",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "access": "protected",
+      "constraints": [],
+      "version": null,
+      "latest_version": null,
+      "deprecation_date": null,
+      "primary_key": [],
+      "time_spine": null,
+      "x_colibri_relation_aliases": [
+        "\"daffleshop\".\"main\".\"local_revenue_summary\""
+      ]
+    },
+    "test.daffleshop.not_null_jaffle_order_details_order_id.9c5425f68b": {
+      "database": "daffleshop",
+      "schema": "main_dbt_test__audit",
+      "name": "not_null_jaffle_order_details_order_id",
+      "resource_type": "test",
+      "package_name": "daffleshop",
+      "path": "not_null_jaffle_order_details_order_id.sql",
+      "original_file_path": "models/mesh/mesh_schema.yml",
+      "unique_id": "test.daffleshop.not_null_jaffle_order_details_order_id.9c5425f68b",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "not_null_jaffle_order_details_order_id"
+      ],
+      "alias": "not_null_jaffle_order_details_order_id",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "store_failures_as": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "tags": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "build_path": null,
+      "unrendered_config": {},
+      "created_at": 1783439638.766449,
+      "relation_name": null,
+      "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [
+        {
+          "name": "jaffle_order_details",
+          "package": null,
+          "version": null
+        }
+      ],
+      "sources": [],
+      "metrics": [],
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_not_null",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.daffleshop.jaffle_order_details"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/mesh_schema.yml/not_null_jaffle_order_details_order_id.sql",
+      "compiled": true,
+      "compiled_code": "\n    \n    \n\n\n\nselect order_id\nfrom \"daffleshop\".\"main\".\"jaffle_order_details\"\nwhere order_id is null\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "column_name": "order_id",
+      "file_key_name": "models.jaffle_order_details",
+      "attached_node": "model.daffleshop.jaffle_order_details",
+      "test_metadata": {
+        "name": "not_null",
+        "kwargs": {
+          "column_name": "order_id",
+          "model": "{{ get_where_subquery(ref('jaffle_order_details')) }}"
+        },
+        "namespace": null
+      }
+    },
+    "test.daffleshop.unique_jaffle_order_details_order_id.da7b3dd9ce": {
+      "database": "daffleshop",
+      "schema": "main_dbt_test__audit",
+      "name": "unique_jaffle_order_details_order_id",
+      "resource_type": "test",
+      "package_name": "daffleshop",
+      "path": "unique_jaffle_order_details_order_id.sql",
+      "original_file_path": "models/mesh/mesh_schema.yml",
+      "unique_id": "test.daffleshop.unique_jaffle_order_details_order_id.da7b3dd9ce",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "unique_jaffle_order_details_order_id"
+      ],
+      "alias": "unique_jaffle_order_details_order_id",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "store_failures_as": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "tags": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "build_path": null,
+      "unrendered_config": {},
+      "created_at": 1783439638.767651,
+      "relation_name": null,
+      "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [
+        {
+          "name": "jaffle_order_details",
+          "package": null,
+          "version": null
+        }
+      ],
+      "sources": [],
+      "metrics": [],
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_unique",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.daffleshop.jaffle_order_details"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/mesh_schema.yml/unique_jaffle_order_details_order_id.sql",
+      "compiled": true,
+      "compiled_code": "\n    \n    \n\nselect\n    order_id as unique_field,\n    count(*) as n_records\n\nfrom \"daffleshop\".\"main\".\"jaffle_order_details\"\nwhere order_id is not null\ngroup by order_id\nhaving count(*) > 1\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "column_name": "order_id",
+      "file_key_name": "models.jaffle_order_details",
+      "attached_node": "model.daffleshop.jaffle_order_details",
+      "test_metadata": {
+        "name": "unique",
+        "kwargs": {
+          "column_name": "order_id",
+          "model": "{{ get_where_subquery(ref('jaffle_order_details')) }}"
+        },
+        "namespace": null
+      }
+    },
+    "test.daffleshop.not_null_jaffle_revenue_trends_order_date.b1fbd713c0": {
+      "database": "daffleshop",
+      "schema": "main_dbt_test__audit",
+      "name": "not_null_jaffle_revenue_trends_order_date",
+      "resource_type": "test",
+      "package_name": "daffleshop",
+      "path": "not_null_jaffle_revenue_trends_order_date.sql",
+      "original_file_path": "models/mesh/mesh_schema.yml",
+      "unique_id": "test.daffleshop.not_null_jaffle_revenue_trends_order_date.b1fbd713c0",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "not_null_jaffle_revenue_trends_order_date"
+      ],
+      "alias": "not_null_jaffle_revenue_trends_order_date",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "store_failures_as": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "tags": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "build_path": null,
+      "unrendered_config": {},
+      "created_at": 1783439638.768629,
+      "relation_name": null,
+      "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [
+        {
+          "name": "jaffle_revenue_trends",
+          "package": null,
+          "version": null
+        }
+      ],
+      "sources": [],
+      "metrics": [],
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_not_null",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.daffleshop.jaffle_revenue_trends"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/mesh_schema.yml/not_null_jaffle_revenue_trends_order_date.sql",
+      "compiled": true,
+      "compiled_code": "\n    \n    \n\n\n\nselect order_date\nfrom \"daffleshop\".\"main\".\"jaffle_revenue_trends\"\nwhere order_date is null\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "column_name": "order_date",
+      "file_key_name": "models.jaffle_revenue_trends",
+      "attached_node": "model.daffleshop.jaffle_revenue_trends",
+      "test_metadata": {
+        "name": "not_null",
+        "kwargs": {
+          "column_name": "order_date",
+          "model": "{{ get_where_subquery(ref('jaffle_revenue_trends')) }}"
+        },
+        "namespace": null
+      }
+    },
+    "test.daffleshop.not_null_jaffle_order_status_status.4c942d44a8": {
+      "database": "daffleshop",
+      "schema": "main_dbt_test__audit",
+      "name": "not_null_jaffle_order_status_status",
+      "resource_type": "test",
+      "package_name": "daffleshop",
+      "path": "not_null_jaffle_order_status_status.sql",
+      "original_file_path": "models/mesh/mesh_schema.yml",
+      "unique_id": "test.daffleshop.not_null_jaffle_order_status_status.4c942d44a8",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "not_null_jaffle_order_status_status"
+      ],
+      "alias": "not_null_jaffle_order_status_status",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "store_failures_as": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "tags": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "build_path": null,
+      "unrendered_config": {},
+      "created_at": 1783439638.769751,
+      "relation_name": null,
+      "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [
+        {
+          "name": "jaffle_order_status",
+          "package": null,
+          "version": null
+        }
+      ],
+      "sources": [],
+      "metrics": [],
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_not_null",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.daffleshop.jaffle_order_status"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/mesh_schema.yml/not_null_jaffle_order_status_status.sql",
+      "compiled": true,
+      "compiled_code": "\n    \n    \n\n\n\nselect status\nfrom \"daffleshop\".\"main\".\"jaffle_order_status\"\nwhere status is null\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "column_name": "status",
+      "file_key_name": "models.jaffle_order_status",
+      "attached_node": "model.daffleshop.jaffle_order_status",
+      "test_metadata": {
+        "name": "not_null",
+        "kwargs": {
+          "column_name": "status",
+          "model": "{{ get_where_subquery(ref('jaffle_order_status')) }}"
+        },
+        "namespace": null
+      }
+    },
+    "test.daffleshop.not_null_local_order_enrichment_order_id.931ce74328": {
+      "database": "daffleshop",
+      "schema": "main_dbt_test__audit",
+      "name": "not_null_local_order_enrichment_order_id",
+      "resource_type": "test",
+      "package_name": "daffleshop",
+      "path": "not_null_local_order_enrichment_order_id.sql",
+      "original_file_path": "models/mesh/mesh_schema.yml",
+      "unique_id": "test.daffleshop.not_null_local_order_enrichment_order_id.931ce74328",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "not_null_local_order_enrichment_order_id"
+      ],
+      "alias": "not_null_local_order_enrichment_order_id",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "store_failures_as": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "tags": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "build_path": null,
+      "unrendered_config": {},
+      "created_at": 1783439638.7710989,
+      "relation_name": null,
+      "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [
+        {
+          "name": "local_order_enrichment",
+          "package": null,
+          "version": null
+        }
+      ],
+      "sources": [],
+      "metrics": [],
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_not_null",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.daffleshop.local_order_enrichment"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/mesh_schema.yml/not_null_local_order_enrichment_order_id.sql",
+      "compiled": true,
+      "compiled_code": "\n    \n    \n\n\n\nselect order_id\nfrom \"daffleshop\".\"main\".\"local_order_enrichment\"\nwhere order_id is null\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "column_name": "order_id",
+      "file_key_name": "models.local_order_enrichment",
+      "attached_node": "model.daffleshop.local_order_enrichment",
+      "test_metadata": {
+        "name": "not_null",
+        "kwargs": {
+          "column_name": "order_id",
+          "model": "{{ get_where_subquery(ref('local_order_enrichment')) }}"
+        },
+        "namespace": null
+      }
+    },
+    "test.daffleshop.unique_local_order_enrichment_order_id.39d1e761ba": {
+      "database": "daffleshop",
+      "schema": "main_dbt_test__audit",
+      "name": "unique_local_order_enrichment_order_id",
+      "resource_type": "test",
+      "package_name": "daffleshop",
+      "path": "unique_local_order_enrichment_order_id.sql",
+      "original_file_path": "models/mesh/mesh_schema.yml",
+      "unique_id": "test.daffleshop.unique_local_order_enrichment_order_id.39d1e761ba",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "unique_local_order_enrichment_order_id"
+      ],
+      "alias": "unique_local_order_enrichment_order_id",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "store_failures_as": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "tags": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "build_path": null,
+      "unrendered_config": {},
+      "created_at": 1783439638.772074,
+      "relation_name": null,
+      "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [
+        {
+          "name": "local_order_enrichment",
+          "package": null,
+          "version": null
+        }
+      ],
+      "sources": [],
+      "metrics": [],
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_unique",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.daffleshop.local_order_enrichment"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/mesh_schema.yml/unique_local_order_enrichment_order_id.sql",
+      "compiled": true,
+      "compiled_code": "\n    \n    \n\nselect\n    order_id as unique_field,\n    count(*) as n_records\n\nfrom \"daffleshop\".\"main\".\"local_order_enrichment\"\nwhere order_id is not null\ngroup by order_id\nhaving count(*) > 1\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "column_name": "order_id",
+      "file_key_name": "models.local_order_enrichment",
+      "attached_node": "model.daffleshop.local_order_enrichment",
+      "test_metadata": {
+        "name": "unique",
+        "kwargs": {
+          "column_name": "order_id",
+          "model": "{{ get_where_subquery(ref('local_order_enrichment')) }}"
+        },
+        "namespace": null
+      }
+    },
+    "test.daffleshop.not_null_local_revenue_summary_order_size.452d4cfdec": {
+      "database": "daffleshop",
+      "schema": "main_dbt_test__audit",
+      "name": "not_null_local_revenue_summary_order_size",
+      "resource_type": "test",
+      "package_name": "daffleshop",
+      "path": "not_null_local_revenue_summary_order_size.sql",
+      "original_file_path": "models/mesh/mesh_schema.yml",
+      "unique_id": "test.daffleshop.not_null_local_revenue_summary_order_size.452d4cfdec",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "not_null_local_revenue_summary_order_size"
+      ],
+      "alias": "not_null_local_revenue_summary_order_size",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "store_failures_as": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "tags": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "build_path": null,
+      "unrendered_config": {},
+      "created_at": 1783439638.773039,
+      "relation_name": null,
+      "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [
+        {
+          "name": "local_revenue_summary",
+          "package": null,
+          "version": null
+        }
+      ],
+      "sources": [],
+      "metrics": [],
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_not_null",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.daffleshop.local_revenue_summary"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/mesh_schema.yml/not_null_local_revenue_summary_order_size.sql",
+      "compiled": true,
+      "compiled_code": "\n    \n    \n\n\n\nselect order_size\nfrom \"daffleshop\".\"main\".\"local_revenue_summary\"\nwhere order_size is null\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "column_name": "order_size",
+      "file_key_name": "models.local_revenue_summary",
+      "attached_node": "model.daffleshop.local_revenue_summary",
+      "test_metadata": {
+        "name": "not_null",
+        "kwargs": {
+          "column_name": "order_size",
+          "model": "{{ get_where_subquery(ref('local_revenue_summary')) }}"
+        },
+        "namespace": null
+      }
+    },
+    "test.daffleshop.not_null_colibri_union_lineage_record_source.814027ab5a": {
+      "database": "daffleshop",
+      "schema": "main_dbt_test__audit",
+      "name": "not_null_colibri_union_lineage_record_source",
+      "resource_type": "test",
+      "package_name": "daffleshop",
+      "path": "not_null_colibri_union_lineage_record_source.sql",
+      "original_file_path": "models/mesh/mesh_schema.yml",
+      "unique_id": "test.daffleshop.not_null_colibri_union_lineage_record_source.814027ab5a",
+      "fqn": [
+        "daffleshop",
+        "mesh",
+        "not_null_colibri_union_lineage_record_source"
+      ],
+      "alias": "not_null_colibri_union_lineage_record_source",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "group": null,
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "store_failures_as": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "tags": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "group": null,
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "build_path": null,
+      "unrendered_config": {},
+      "created_at": 1783439638.7740228,
+      "relation_name": null,
+      "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
+      "doc_blocks": [],
+      "language": "sql",
+      "refs": [
+        {
+          "name": "colibri_union_lineage",
+          "package": null,
+          "version": null
+        }
+      ],
+      "sources": [],
+      "metrics": [],
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_not_null",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.daffleshop.colibri_union_lineage"
+        ]
+      },
+      "compiled_path": "target/compiled/daffleshop/models/mesh/mesh_schema.yml/not_null_colibri_union_lineage_record_source.sql",
+      "compiled": true,
+      "compiled_code": "\n    \n    \n\n\n\nselect record_source\nfrom \"daffleshop\".\"main\".\"colibri_union_lineage\"\nwhere record_source is null\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "contract": {
+        "enforced": false,
+        "alias_types": true,
+        "checksum": null
+      },
+      "column_name": "record_source",
+      "file_key_name": "models.colibri_union_lineage",
+      "attached_node": "model.daffleshop.colibri_union_lineage",
+      "test_metadata": {
+        "name": "not_null",
+        "kwargs": {
+          "column_name": "record_source",
+          "model": "{{ get_where_subquery(ref('colibri_union_lineage')) }}"
         },
         "namespace": null
       }
@@ -5830,7 +7360,7 @@
         "tags": []
       },
       "relation_name": "\"jaffleshop\".\"main\".\"raw_customers\"",
-      "created_at": 1783413651.3742971,
+      "created_at": 1783439638.5526478,
       "unrendered_database": null,
       "unrendered_schema": "main",
       "doc_blocks": []
@@ -5906,7 +7436,7 @@
         "tags": []
       },
       "relation_name": "\"jaffleshop\".\"main\".\"raw_orders\"",
-      "created_at": 1783413651.375093,
+      "created_at": 1783439638.553527,
       "unrendered_database": null,
       "unrendered_schema": "main",
       "doc_blocks": []
@@ -5982,7 +7512,7 @@
         "tags": []
       },
       "relation_name": "\"jaffleshop\".\"main\".\"raw_payments\"",
-      "created_at": 1783413651.37535,
+      "created_at": 1783439638.553792,
       "unrendered_database": null,
       "unrendered_schema": "main",
       "doc_blocks": []
@@ -17062,6 +18592,50 @@
     "source.jaffleshop.jaffle_shop.raw_customers": [],
     "source.jaffleshop.jaffle_shop.raw_orders": [],
     "source.jaffleshop.stripe.raw_payments": [],
+    "model.daffleshop.colibri_union_lineage": [
+      "model.daffleshop.jaffle_order_details",
+      "model.daffleshop.local_order_enrichment",
+      "model.daffleshop.local_revenue_summary"
+    ],
+    "model.daffleshop.jaffle_order_details": [
+      "model.jaffleshop.public_orders"
+    ],
+    "model.daffleshop.jaffle_order_status": [
+      "model.jaffleshop.public_order_status_summary"
+    ],
+    "model.daffleshop.jaffle_revenue_trends": [
+      "model.jaffleshop.public_daily_revenue"
+    ],
+    "model.daffleshop.local_order_enrichment": [
+      "model.daffleshop.jaffle_order_details"
+    ],
+    "model.daffleshop.local_revenue_summary": [
+      "model.daffleshop.local_order_enrichment"
+    ],
+    "test.daffleshop.not_null_jaffle_order_details_order_id.9c5425f68b": [
+      "model.daffleshop.jaffle_order_details"
+    ],
+    "test.daffleshop.unique_jaffle_order_details_order_id.da7b3dd9ce": [
+      "model.daffleshop.jaffle_order_details"
+    ],
+    "test.daffleshop.not_null_jaffle_revenue_trends_order_date.b1fbd713c0": [
+      "model.daffleshop.jaffle_revenue_trends"
+    ],
+    "test.daffleshop.not_null_jaffle_order_status_status.4c942d44a8": [
+      "model.daffleshop.jaffle_order_status"
+    ],
+    "test.daffleshop.not_null_local_order_enrichment_order_id.931ce74328": [
+      "model.daffleshop.local_order_enrichment"
+    ],
+    "test.daffleshop.unique_local_order_enrichment_order_id.39d1e761ba": [
+      "model.daffleshop.local_order_enrichment"
+    ],
+    "test.daffleshop.not_null_local_revenue_summary_order_size.452d4cfdec": [
+      "model.daffleshop.local_revenue_summary"
+    ],
+    "test.daffleshop.not_null_colibri_union_lineage_record_source.814027ab5a": [
+      "model.daffleshop.colibri_union_lineage"
+    ],
     "model.baffleshop.public_customers_from_jaffle": [
       "model.jaffleshop.public_customers"
     ],
@@ -17159,18 +18733,21 @@
     ],
     "model.jaffleshop.public_orders": [
       "test.jaffleshop.not_null_public_orders_order_id.7938b4b06b",
-      "test.jaffleshop.unique_public_orders_order_id.79f26eb79c"
+      "test.jaffleshop.unique_public_orders_order_id.79f26eb79c",
+      "model.daffleshop.jaffle_order_details"
     ],
     "model.jaffleshop.public_daily_revenue": [
       "test.jaffleshop.not_null_public_daily_revenue_order_date.0df23ee6ec",
-      "test.jaffleshop.unique_public_daily_revenue_order_date.f409bafa83"
+      "test.jaffleshop.unique_public_daily_revenue_order_date.f409bafa83",
+      "model.daffleshop.jaffle_revenue_trends"
     ],
     "model.jaffleshop.public_customer_tiers": [
       "model.jaffleshop.public_customer_rollup"
     ],
     "model.jaffleshop.public_order_status_summary": [
       "test.jaffleshop.not_null_public_order_status_summary_status.f0e1504626",
-      "test.jaffleshop.unique_public_order_status_summary_status.bb209aab79"
+      "test.jaffleshop.unique_public_order_status_summary_status.bb209aab79",
+      "model.daffleshop.jaffle_order_status"
     ],
     "seed.jaffleshop.raw_customers": [],
     "seed.jaffleshop.raw_orders": [],
@@ -17209,6 +18786,39 @@
     "source.jaffleshop.stripe.raw_payments": [
       "model.jaffleshop.stg_payments"
     ],
+    "model.daffleshop.colibri_union_lineage": [
+      "test.daffleshop.not_null_colibri_union_lineage_record_source.814027ab5a"
+    ],
+    "model.daffleshop.jaffle_order_details": [
+      "model.daffleshop.colibri_union_lineage",
+      "model.daffleshop.local_order_enrichment",
+      "test.daffleshop.not_null_jaffle_order_details_order_id.9c5425f68b",
+      "test.daffleshop.unique_jaffle_order_details_order_id.da7b3dd9ce"
+    ],
+    "model.daffleshop.jaffle_order_status": [
+      "test.daffleshop.not_null_jaffle_order_status_status.4c942d44a8"
+    ],
+    "model.daffleshop.jaffle_revenue_trends": [
+      "test.daffleshop.not_null_jaffle_revenue_trends_order_date.b1fbd713c0"
+    ],
+    "model.daffleshop.local_order_enrichment": [
+      "model.daffleshop.colibri_union_lineage",
+      "model.daffleshop.local_revenue_summary",
+      "test.daffleshop.not_null_local_order_enrichment_order_id.931ce74328",
+      "test.daffleshop.unique_local_order_enrichment_order_id.39d1e761ba"
+    ],
+    "model.daffleshop.local_revenue_summary": [
+      "model.daffleshop.colibri_union_lineage",
+      "test.daffleshop.not_null_local_revenue_summary_order_size.452d4cfdec"
+    ],
+    "test.daffleshop.not_null_jaffle_order_details_order_id.9c5425f68b": [],
+    "test.daffleshop.unique_jaffle_order_details_order_id.da7b3dd9ce": [],
+    "test.daffleshop.not_null_jaffle_revenue_trends_order_date.b1fbd713c0": [],
+    "test.daffleshop.not_null_jaffle_order_status_status.4c942d44a8": [],
+    "test.daffleshop.not_null_local_order_enrichment_order_id.931ce74328": [],
+    "test.daffleshop.unique_local_order_enrichment_order_id.39d1e761ba": [],
+    "test.daffleshop.not_null_local_revenue_summary_order_size.452d4cfdec": [],
+    "test.daffleshop.not_null_colibri_union_lineage_record_source.814027ab5a": [],
     "model.baffleshop.public_customers_from_jaffle": [
       "model.baffleshop.colibri_union_lineage",
       "test.baffleshop.not_null_public_customers_from_jaffle_customer_id.fa211f7e39",
