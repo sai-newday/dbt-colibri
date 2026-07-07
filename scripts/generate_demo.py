@@ -2,13 +2,11 @@ import os
 from dbt_colibri.lineage_extractor.extractor import DbtColumnLineageExtractor
 from dbt_colibri.report.generator import DbtColibriReportGenerator
 
-# Fixed version
-version = "1.10"
+# Use the pre-merged 3-project artifacts (baffleshop, daffleshop, jaffleshop)
+manifest_path = "combined-lineage/dist/_merged_artifacts/manifest.json"
+catalog_path = "combined-lineage/dist/_merged_artifacts/catalog.json"
 
-print(f"Processing dbt version {version}...")
-
-manifest_path = f"tests/test_data/{version}/manifest.json"
-catalog_path = f"tests/test_data/{version}/catalog.json"
+print("Processing merged 3-project demo (baffleshop, daffleshop, jaffleshop)...")
 
 # Output must be 'dist/' for GitHub Pages
 output_dir = "dist"
