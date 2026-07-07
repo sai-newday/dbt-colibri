@@ -201,3 +201,131 @@ def test_resolve_model_missing_manifest():
 
     assert result.exit_code == 1
     assert "Manifest file not found" in result.output
+
+
+def test_merge_artifacts_success(tmp_path):
+    manifest_a = {
+        "metadata": {"adapter_type": "duckdb"},
+        "nodes": {
+            "model.alpha.customers": {
+                "unique_id": "model.alpha.customers",
+                "resource_type": "model",
+                "database": "alpha",
+                "schema": "main",
+                "name": "customers",
+                "relation_name": '"alpha"."main"."customers"',
+                "config": {"materialized": "view"},
+                "depends_on": {"nodes": []},
+            }
+        },
+        "sources": {},
+        "parent_map": {"model.alpha.customers": []},
+        "child_map": {"model.alpha.customers": []},
+        "group_map": {},
+    }
+    manifest_b = {
+        "metadata": {"adapter_type": "duckdb"},
+        "nodes": {
+            "model.beta.orders": {
+                "unique_id": "model.beta.orders",
+                "resource_type": "model",
+                "database": "beta",
+                "schema": "main",
+                "name": "orders",
+                "relation_name": '"beta"."main"."orders"',
+                "config": {"materialized": "view"},
+                "depends_on": {"nodes": []},
+            }
+        },
+        "sources": {},
+        "parent_map": {"model.beta.orders": []},
+        "child_map": {"model.beta.orders": []},
+        "group_map": {},
+    }
+    catalog_a = {
+        "metadata": {"adapter_type": "duckdb"},
+        "nodes": {
+            "model.alpha.customers": {
+                "unique_id": "model.alpha.customers",
+                "metadata": {"database": "alpha", "schema": "main", "name": "customers"},
+                "columns": {"customer_id": {"type": "INTEGER"}},
+            }
+        },
+        "sources": {},
+    }
+    catalog_b = {
+        "metadata": {"adapter_type": "duckdb"},
+        "nodes": {
+            "model.beta.orders": {
+                "unique_id": "model.beta.orders",
+                "metadata": {"database": "beta", "schema": "main", "name": "orders"},
+                "columns": {"order_id": {"type": "INTEGER"}},
+            }
+        },
+        "sources": {},
+    }
+
+    manifest_a_path = tmp_path / "manifest_a.json"
+    catalog_a_path = tmp_path / "catalog_a.json"
+    manifest_b_path = tmp_path / "manifest_b.json"
+    catalog_b_path = tmp_path / "catalog_b.json"
+    out_dir = tmp_path / "merged"
+
+    manifest_a_path.write_text(json.dumps(manifest_a), encoding="utf-8")
+    catalog_a_path.write_text(json.dumps(catalog_a), encoding="utf-8")
+    manifest_b_path.write_text(json.dumps(manifest_b), encoding="utf-8")
+    catalog_b_path.write_text(json.dumps(catalog_b), encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "merge-artifacts",
+            "--project-artifacts",
+            "alpha",
+            str(manifest_a_path),
+            str(catalog_a_path),
+            "--project-artifacts",
+            "beta",
+            str(manifest_b_path),
+            str(catalog_b_path),
+            "--output-dir",
+            str(out_dir),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (out_dir / "manifest.json").exists()
+    assert (out_dir / "catalog.json").exists()
+
+
+def test_validate_cross_project_accepts_source_only(tmp_path):
+    manifest_path = tmp_path / "colibri-manifest.json"
+    manifest_data = {
+        "nodes": {
+            "source.consumer.nonexistent_upstream.customers": {},
+            "model.consumer.orders": {},
+        },
+        "lineage": {
+            "edges": [
+                {
+                    "source": "source.consumer.nonexistent_upstream.customers",
+                    "target": "model.consumer.orders",
+                }
+            ]
+        },
+    }
+    manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "validate-cross-project",
+            "--manifest",
+            str(manifest_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Accepted source-only cases: 1" in result.output

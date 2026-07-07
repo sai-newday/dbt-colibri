@@ -123,6 +123,13 @@ class DbtColibriReportGenerator:
                 base_name = parts[-2]
                 return f"{base_name}_{version_segment}"
         return parts[-1]
+
+    def _project_from_node_id(self, node_id: str) -> str:
+        """Return project segment from a dbt unique_id-style node identifier."""
+        parts = node_id.split(".")
+        if len(parts) >= 2 and parts[1]:
+            return parts[1]
+        return self.manifest.get("metadata", {}).get("project_name", "project")
     
     def build_manifest_node_data(self, node_id: str) -> dict:
         """Build node metadata from manifest and catalog data."""
@@ -320,6 +327,12 @@ class DbtColibriReportGenerator:
                     "relationName": meta.get("relationName"),
                 }
 
+                project_tag = self._project_from_node_id(node_id)
+                existing_tags = list(node_dict.get("tags") or [])
+                if project_tag and project_tag not in existing_tags:
+                    existing_tags.append(project_tag)
+                node_dict["tags"] = existing_tags
+
                 if node_id in self.extractor.catalog_missing_models:
                     node_dict["catalogMissing"] = True
 
@@ -492,11 +505,13 @@ class DbtColibriReportGenerator:
         }
 
 
-        # Build a tree based on file path (e.g., models/area/subarea/model.sql)
-        # Structure: { rootSegment: { nextSegment: { ... }, __items__: [node_ids] } }
-        path_tree: Dict[str, dict] = {}
+        # Build path tree grouped by project, then path hierarchy.
+        # Structure: { project: { rootSegment: { ... }, __items__: [node_ids] } }
+        path_tree_by_project: Dict[str, dict] = {}
         for node in nodes.values():
             node_path = node.get("path")
+            node_project = self._project_from_node_id(node["id"])
+            project_tree = path_tree_by_project.setdefault(node_project, {})
 
             # collect all exposures under a top-level "exposures" folder ---
             if node.get("nodeType") == "exposure":
@@ -511,7 +526,7 @@ class DbtColibriReportGenerator:
                 parts = [p for p in node_path_str.replace("\\", "/").split("/") if p]
 
                 # Build path: exposures -> (optional subfolders) -> __items__
-                cursor = path_tree.setdefault("exposures", {})
+                cursor = project_tree.setdefault("exposures", {})
                 for segment in parts[:-1]:  # Exclude filename
                     cursor = cursor.setdefault(segment, {})
                 cursor.setdefault("__items__", []).append(node["id"])
@@ -531,7 +546,7 @@ class DbtColibriReportGenerator:
                 parts = [p for p in node_path_str.replace("\\", "/").split("/") if p]
                 
                 # Build the path tree: sources -> path segments -> source_name -> source_table_name
-                cursor = path_tree.setdefault("sources", {})
+                cursor = project_tree.setdefault("sources", {})
                 
                 # Add path segments (excluding the last one which is the filename)
                 for segment in parts[:-1]:
@@ -545,12 +560,12 @@ class DbtColibriReportGenerator:
             
             if not node_path:
                 # Put items without path under a special bucket
-                path_tree.setdefault("__no_path__", {}).setdefault("__items__", []).append(node["id"])
+                project_tree.setdefault("__no_path__", {}).setdefault("__items__", []).append(node["id"])
                 continue
 
             # Normalize and split path into segments
             parts = [p for p in str(node_path).replace("\\", "/").split("/") if p]
-            cursor = path_tree
+            cursor = project_tree
             for segment in parts[:-1]:
                 cursor = cursor.setdefault(segment, {})
             # Leaf item: append only the node id
@@ -578,7 +593,8 @@ class DbtColibriReportGenerator:
 
             return sorted_folder
 
-        sort_path_tree(path_tree)
+        for project in list(path_tree_by_project.keys()):
+            path_tree_by_project[project] = sort_path_tree(path_tree_by_project[project])
 
         project_name = self.manifest.get("metadata", {}).get("project_name", "project")
 
@@ -603,7 +619,7 @@ class DbtColibriReportGenerator:
             },
             "tree": {
                 "byDatabase": db_tree,
-                "byPath": {project_name: path_tree}
+                "byPath": path_tree_by_project
             }
         }
 
@@ -730,6 +746,90 @@ def inject_data_into_html(
         out_f.write('<script>window.colibriData = JSON.parse(atob("')
         out_f.write(b64_str)
         out_f.write('"));</script>')
+        out_f.write(
+            """
+<script>
+(function () {
+    function hexToRgba(hex, alpha) {
+        var clean = (hex || '').replace('#', '');
+        if (clean.length === 3) {
+            clean = clean[0] + clean[0] + clean[1] + clean[1] + clean[2] + clean[2];
+        }
+        var r = parseInt(clean.substring(0, 2), 16);
+        var g = parseInt(clean.substring(2, 4), 16);
+        var b = parseInt(clean.substring(4, 6), 16);
+        if (isNaN(r) || isNaN(g) || isNaN(b)) {
+            return 'rgba(0,0,0,' + alpha + ')';
+        }
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+
+    function buildProjectColorMap() {
+        var data = window.colibriData || {};
+        var nodes = data.nodes || {};
+        var projects = [];
+        for (var nodeId in nodes) {
+            if (!Object.prototype.hasOwnProperty.call(nodes, nodeId)) continue;
+            if (typeof nodeId !== "string" || !nodeId.startsWith("model.")) continue;
+            var parts = nodeId.split(".");
+            if (parts.length < 2) continue;
+            var project = parts[1];
+            if (projects.indexOf(project) === -1) projects.push(project);
+        }
+
+        projects.sort();
+        var palette = [
+            "#2563eb", "#dc2626", "#16a34a", "#d97706", "#7c3aed", "#0891b2",
+            "#be123c", "#4f46e5", "#15803d", "#c2410c"
+        ];
+        var projectColors = {};
+        for (var i = 0; i < projects.length; i++) {
+            projectColors[projects[i]] = palette[i % palette.length];
+        }
+        return projectColors;
+    }
+
+    function applyProjectColors(projectColors) {
+        var nodes = document.querySelectorAll('.react-flow__node[data-id]');
+        for (var i = 0; i < nodes.length; i++) {
+            var el = nodes[i];
+            var nodeId = el.getAttribute('data-id') || '';
+            if (!nodeId.startsWith('model.')) continue;
+
+            var parts = nodeId.split('.');
+            if (parts.length < 2) continue;
+            var project = parts[1];
+            var color = projectColors[project];
+            if (!color) continue;
+
+            var tint = hexToRgba(color, 0.12);
+            el.style.border = '2px solid ' + color;
+            el.style.borderLeft = '8px solid ' + color;
+            el.style.boxShadow = '0 0 0 2px ' + hexToRgba(color, 0.25) + ' inset';
+            el.style.backgroundImage = 'linear-gradient(90deg, ' + tint + ' 0%, rgba(255,255,255,0) 45%)';
+        }
+    }
+
+    function init() {
+        var projectColors = buildProjectColorMap();
+        window.colibriProjectColors = projectColors;
+        applyProjectColors(projectColors);
+
+        var observer = new MutationObserver(function () {
+            applyProjectColors(projectColors);
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+        """
+    )
         out_f.write(template_html[insert_at:])
 
     return str(output_html_path)

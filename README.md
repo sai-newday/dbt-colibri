@@ -169,6 +169,48 @@ colibri resolve-model --name raw_customers [OPTIONS]
 colibri resolve-model --name raw_customers --manifest target/manifest.json
 ```
 
+#### `colibri merge-artifacts`
+
+Merge manifest/catalog files from multiple dbt projects into one combined artifact set.
+
+```bash
+colibri merge-artifacts [OPTIONS]
+```
+
+**Options:**
+- `--project-artifacts`: Repeatable triple: `PROJECT MANIFEST_PATH CATALOG_PATH` [required]
+- `--output-dir`: Directory where merged `manifest.json` and `catalog.json` will be written [required]
+- `--no-strict`: Allow unresolved collisions without failing (default is strict mode)
+- `--link-cross-project-sources`: Rewrite cross-project sources to upstream models when available
+- `--help`: Show help message
+
+**Example:**
+
+```bash
+colibri merge-artifacts \
+  --project-artifacts jaffleshop /Users/n45413/dev/jaffleshop/target/manifest.json /Users/n45413/dev/jaffleshop/target/catalog.json \
+  --project-artifacts baffleshop /Users/n45413/dev/baffleshop/target/manifest.json /Users/n45413/dev/baffleshop/target/catalog.json \
+  --output-dir /Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts \
+  --link-cross-project-sources
+```
+
+#### `colibri validate-cross-project`
+
+Validate cross-project lineage in a generated `colibri-manifest.json`.
+
+```bash
+colibri validate-cross-project --manifest dist/colibri-manifest.json [OPTIONS]
+```
+
+**Options:**
+- `--manifest`: Path to generated `colibri-manifest.json` [required]
+- `--format`: Output format: `text` or `json` (default: `text`)
+- `--help`: Show help message
+
+Validation behavior:
+- Accepts source-only parent references when no matching upstream model exists in other projects.
+- Raises an issue only when expected upstream is missing and matching candidate models are found in other projects.
+
 ### Output Files
 
 - **`colibri-manifest.json`**: Lineage data
@@ -188,6 +230,40 @@ your-dbt-project/
 ```
 
 ## Advanced Usage
+
+### Multi-project Lineage (jaffleshop + baffleshop)
+
+1. Merge dbt artifacts from both projects:
+
+```bash
+colibri merge-artifacts \
+  --project-artifacts jaffleshop /Users/n45413/dev/jaffleshop/target/manifest.json /Users/n45413/dev/jaffleshop/target/catalog.json \
+  --project-artifacts baffleshop /Users/n45413/dev/baffleshop/target/manifest.json /Users/n45413/dev/baffleshop/target/catalog.json \
+  --output-dir /Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts \
+  --link-cross-project-sources
+```
+
+2. Generate combined HTML from merged artifacts:
+
+```bash
+colibri generate \
+  --manifest /Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts/manifest.json \
+  --catalog /Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts/catalog.json \
+  --output-dir /Users/n45413/dev/dbt-colibri/combined-lineage/dist
+```
+
+3. Validate cross-project lineage in the generated output:
+
+```bash
+colibri validate-cross-project \
+  --manifest /Users/n45413/dev/dbt-colibri/combined-lineage/dist/colibri-manifest.json
+```
+
+This produces:
+- `/Users/n45413/dev/dbt-colibri/combined-lineage/dist/index.html`
+- `/Users/n45413/dev/dbt-colibri/combined-lineage/dist/colibri-manifest.json`
+- `/Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts/manifest.json`
+- `/Users/n45413/dev/dbt-colibri/combined-lineage/dist/_merged_artifacts/catalog.json`
 
 ### CI/CD Integration
 

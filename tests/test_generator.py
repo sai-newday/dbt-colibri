@@ -5,6 +5,141 @@ from unittest.mock import MagicMock
 import pytest
 import json
 
+
+def test_build_full_lineage_groups_by_path_by_project(tmp_path):
+    manifest_path = tmp_path / "manifest.json"
+    catalog_path = tmp_path / "catalog.json"
+
+    manifest_data = {
+        "metadata": {"adapter_type": "duckdb", "project_name": "jaffleshop"},
+        "nodes": {
+            "model.jaffleshop.alpha_model": {
+                "unique_id": "model.jaffleshop.alpha_model",
+                "resource_type": "model",
+                "database": "jaffleshop",
+                "schema": "main",
+                "name": "alpha_model",
+                "original_file_path": "models/marts/alpha_model.sql",
+                "relation_name": '"jaffleshop"."main"."alpha_model"',
+                "config": {"materialized": "view"},
+                "depends_on": {"nodes": []},
+                "columns": {},
+                "refs": [],
+                "tags": [],
+            },
+            "model.baffleshop.beta_model": {
+                "unique_id": "model.baffleshop.beta_model",
+                "resource_type": "model",
+                "database": "baffleshop",
+                "schema": "main",
+                "name": "beta_model",
+                "original_file_path": "models/mesh/beta_model.sql",
+                "relation_name": '"baffleshop"."main"."beta_model"',
+                "config": {"materialized": "view"},
+                "depends_on": {"nodes": []},
+                "columns": {},
+                "refs": [],
+                "tags": [],
+            },
+        },
+        "sources": {},
+        "parent_map": {},
+        "child_map": {},
+    }
+
+    catalog_data = {
+        "metadata": {"adapter_type": "duckdb"},
+        "nodes": {
+            "model.jaffleshop.alpha_model": {
+                "unique_id": "model.jaffleshop.alpha_model",
+                "metadata": {
+                    "database": "jaffleshop",
+                    "schema": "main",
+                    "name": "alpha_model",
+                },
+                "columns": {"id": {"type": "INTEGER"}},
+            },
+            "model.baffleshop.beta_model": {
+                "unique_id": "model.baffleshop.beta_model",
+                "metadata": {
+                    "database": "baffleshop",
+                    "schema": "main",
+                    "name": "beta_model",
+                },
+                "columns": {"id": {"type": "INTEGER"}},
+            },
+        },
+        "sources": {},
+    }
+
+    manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+    catalog_path.write_text(json.dumps(catalog_data), encoding="utf-8")
+
+    extractor = DbtColumnLineageExtractor(str(manifest_path), str(catalog_path))
+    generator = DbtColibriReportGenerator(extractor)
+    result = generator.build_full_lineage()
+
+    by_path = result["tree"]["byPath"]
+    assert "jaffleshop" in by_path
+    assert "baffleshop" in by_path
+    assert "model.jaffleshop.alpha_model" in by_path["jaffleshop"]["models"]["marts"]["__items__"]
+    assert "model.baffleshop.beta_model" in by_path["baffleshop"]["models"]["mesh"]["__items__"]
+
+
+def test_build_full_lineage_adds_project_name_tag(tmp_path):
+    manifest_path = tmp_path / "manifest.json"
+    catalog_path = tmp_path / "catalog.json"
+
+    manifest_data = {
+        "metadata": {"adapter_type": "duckdb", "project_name": "jaffleshop"},
+        "nodes": {
+            "model.baffleshop.beta_model": {
+                "unique_id": "model.baffleshop.beta_model",
+                "resource_type": "model",
+                "database": "baffleshop",
+                "schema": "main",
+                "name": "beta_model",
+                "original_file_path": "models/mesh/beta_model.sql",
+                "relation_name": '"baffleshop"."main"."beta_model"',
+                "config": {"materialized": "view"},
+                "depends_on": {"nodes": []},
+                "columns": {},
+                "refs": [],
+                "tags": ["analytics"],
+            }
+        },
+        "sources": {},
+        "parent_map": {},
+        "child_map": {},
+    }
+
+    catalog_data = {
+        "metadata": {"adapter_type": "duckdb"},
+        "nodes": {
+            "model.baffleshop.beta_model": {
+                "unique_id": "model.baffleshop.beta_model",
+                "metadata": {
+                    "database": "baffleshop",
+                    "schema": "main",
+                    "name": "beta_model",
+                },
+                "columns": {"id": {"type": "INTEGER"}},
+            }
+        },
+        "sources": {},
+    }
+
+    manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+    catalog_path.write_text(json.dumps(catalog_data), encoding="utf-8")
+
+    extractor = DbtColumnLineageExtractor(str(manifest_path), str(catalog_path))
+    generator = DbtColibriReportGenerator(extractor)
+    result = generator.build_full_lineage()
+
+    tags = result["nodes"]["model.baffleshop.beta_model"]["tags"]
+    assert "analytics" in tags
+    assert "baffleshop" in tags
+
 def test_build_manifest_node_data_node_not_found(dbt_valid_test_data_dir):
     """Test build_manifest_node_data when node_id is not found in manifest or catalog."""
     
@@ -692,7 +827,7 @@ def test_sort_path_tree_preserves_subfolders():
     result = generator.build_full_lineage()
 
     by_path = result["tree"]["byPath"]
-    project_tree = by_path["test_project"]
+    project_tree = by_path["test"]
 
     # The models folder must have BOTH __items__ and a staging subfolder
     models_folder = project_tree.get("models", {})
@@ -800,7 +935,7 @@ def test_tags_included_in_full_lineage_output():
     result = generator.build_full_lineage()
 
     node = result["nodes"]["model.test.tagged_model"]
-    assert node["tags"] == ["finance", "critical"]
+    assert node["tags"] == ["finance", "critical", "test"]
 
 
 def test_column_tags_extracted_from_manifest():
