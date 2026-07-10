@@ -1,0 +1,288 @@
+name: dbt Model Change Comment
+
+on:
+  workflow_call:
+    inputs:
+      dbt_profile_name:
+        description: dbt profile name to generate in CI
+        required: true
+        type: string
+      base_sha:
+        description: Base SHA for the pull request diff
+        required: true
+        type: string
+      head_sha:
+        description: Head SHA for the pull request diff
+        required: true
+        type: string
+      pr_number:
+        description: Pull request number to comment on
+        required: true
+        type: string
+      artifacts_ref:
+        description: dbt-colibri ref that stores merged master artifacts
+        required: false
+        type: string
+        default: artifacts-sync
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  analyze-dbt-model-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout shared dbt-colibri artifacts
+        uses: actions/checkout@v4
+        with:
+          repository: sai-newday/dbt-colibri
+          ref: ${{ inputs.artifacts_ref }}
+          path: .dbt-colibri
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: python3 -m pip install uv
+
+      - name: Install dependencies
+        run: uv pip install -r requirements.txt --system
+
+      - name: Create CI dbt profile
+        run: |
+          mkdir -p ./.ci
+          cat > ./.ci/profiles.yml <<EOF
+          ${{ inputs.dbt_profile_name }}:
+            outputs:
+              ci:
+                type: duckdb
+                path: "${{ inputs.dbt_profile_name }}.duckdb"
+                threads: 4
+            target: ci
+          EOF
+
+      - name: Build dbt manifest
+        run: |
+          dbt deps --profiles-dir ./.ci
+          dbt parse --profiles-dir ./.ci
+
+      - name: Comment on PR blast radius
+        env:
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COLIBRI_CMD: colibri
+          MANIFEST_PATH: target/manifest.json
+          BLAST_MANIFEST_PATH: .dbt-colibri/combined-lineage/dist/_merged_artifacts/manifest.json
+          BLAST_CATALOG_PATH: .dbt-colibri/combined-lineage/dist/_merged_artifacts/catalog.json
+        run: |
+          set -euo pipefail
+          if [ ! -f "${BLAST_MANIFEST_PATH}" ]; then
+            echo "Merged blast manifest not found: ${BLAST_MANIFEST_PATH}"
+            exit 1
+          fi
+          if [ ! -f "${BLAST_CATALOG_PATH}" ]; then
+            echo "Merged blast catalog not found: ${BLAST_CATALOG_PATH}"
+            exit 1
+          fi
+
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+          from urllib import error, request
+
+          COMMENT_MARKER = "<!-- dbt-model-change-report -->"
+          LINEAGE_BASE_URL = "https://sai-newday.github.io/dbt-colibri/index.html"
+
+          def git(*args: str) -> str:
+              result = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
+              if result.returncode != 0:
+                  raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+              return result.stdout
+
+          def api(method: str, url: str, token: str, payload: dict | None = None):
+              headers = {
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {token}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              }
+              body = None
+              if payload is not None:
+                  body = json.dumps(payload).encode("utf-8")
+                  headers["Content-Type"] = "application/json"
+              req = request.Request(url, data=body, method=method, headers=headers)
+              try:
+                  with request.urlopen(req) as resp:
+                      raw = resp.read().decode("utf-8")
+                      return json.loads(raw) if raw else []
+              except error.HTTPError as exc:
+                  detail = exc.read().decode("utf-8", errors="replace")
+                  raise RuntimeError(f"GitHub API error {exc.code}: {detail}") from exc
+
+          def parse_json_output(output: str) -> dict | None:
+              text = output.strip()
+              if not text:
+                  return None
+              try:
+                  loaded = json.loads(text)
+                  if isinstance(loaded, dict):
+                      return loaded
+              except json.JSONDecodeError:
+                  pass
+              start = text.find("{")
+              end = text.rfind("}")
+              if start != -1 and end != -1 and start < end:
+                  try:
+                      loaded = json.loads(text[start : end + 1])
+                      if isinstance(loaded, dict):
+                          return loaded
+                  except json.JSONDecodeError:
+                      return None
+              return None
+
+          def model_id_for_file(file_path: str, manifest: dict, profile_name: str) -> tuple[str, str]:
+              for unique_id, node in manifest.get("nodes", {}).items():
+                  if node.get("resource_type") != "model":
+                      continue
+                  if node.get("original_file_path") == file_path:
+                      return unique_id, node.get("name") or Path(file_path).stem
+              model_name = Path(file_path).stem
+              return f"model.{profile_name}.{model_name}", model_name
+
+          def extract_affected_models(payload: dict | None) -> list[str]:
+              if not payload:
+                  return []
+              models = []
+              for item in payload.get("affected_items", []):
+                  if isinstance(item, dict):
+                      model = item.get("model")
+                      if isinstance(model, str) and model.strip():
+                          models.append(model.strip())
+              return sorted(dict.fromkeys(models))
+
+          base_sha = os.environ["BASE_SHA"]
+          head_sha = os.environ["HEAD_SHA"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          pr_number = os.environ["PR_NUMBER"]
+          token = os.environ["GITHUB_TOKEN"]
+          manifest_path = Path(os.environ.get("MANIFEST_PATH", "target/manifest.json"))
+          blast_manifest_path = os.environ["BLAST_MANIFEST_PATH"]
+          blast_catalog_path = os.environ["BLAST_CATALOG_PATH"]
+          colibri_cmd = os.environ.get("COLIBRI_CMD", "colibri")
+          profile_name = os.environ["PROFILE_NAME"]
+
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          changed_files = [line.strip() for line in git("diff", "--name-only", base_sha, head_sha).splitlines() if line.strip()]
+          model_files = [path for path in changed_files if path.startswith("models/") and path.endswith(".sql")]
+
+          analyses: list[dict[str, object]] = []
+          blast_results: list[dict[str, object]] = []
+
+          for file_path in model_files:
+              unique_id, model_name = model_id_for_file(file_path, manifest, profile_name)
+              command = [
+                  colibri_cmd,
+                  "blast-radius",
+                  "--model",
+                  unique_id,
+                  "--manifest",
+                  blast_manifest_path,
+                  "--catalog",
+                  blast_catalog_path,
+                  "--format",
+                  "json",
+              ]
+              result = subprocess.run(command, capture_output=True, text=True, check=False)
+              payload = parse_json_output(result.stdout) if result.returncode == 0 else None
+              blast_results.append({
+                  "file_path": file_path,
+                  "unique_id": unique_id,
+                  "model_name": model_name,
+                  "success": result.returncode == 0,
+                  "payload": payload,
+                  "stderr": result.stderr.strip(),
+              })
+              analyses.append({"file_path": file_path, "unique_id": unique_id, "model_name": model_name})
+
+          lines = [
+              COMMENT_MARKER,
+              "## dbt Column-Level Lineage Analysis",
+              "",
+              f"Using merged master artifacts from `{blast_manifest_path}` and `{blast_catalog_path}`.",
+              "",
+              f"Changed dbt model SQL files: {len(model_files)}",
+              f"Blast radius requests executed: {len(blast_results)}",
+              "",
+          ]
+
+          if not model_files:
+              lines.append("No changes were detected in `models/**/*.sql` files.")
+          else:
+              lines.append("| File changed | dbt model | Downstream models |")
+              lines.append("| :- | :- | -: |")
+              for blast in blast_results:
+                  affected_models = extract_affected_models(blast["payload"])
+                  downstream = ", ".join(affected_models) if affected_models else "(none reported)"
+                  lines.append(f"| {blast['file_path']} | `{blast['unique_id']}` | {downstream} |")
+
+              lines.append("")
+              lines.append("## Blast radius details")
+              for blast in blast_results:
+                  lines.append(f"### {blast['file_path']}")
+                  lines.append(f"- Model: `{blast['model_name']}`")
+                  lines.append(f"- Model unique_id: `{blast['unique_id']}`")
+                  lines.append(f"- [🔍 View lineage]({LINEAGE_BASE_URL}?model={blast['unique_id']}&children=all&parents=all)")
+                  if not blast["success"]:
+                      lines.append("- Blast radius: failed")
+                      if blast["stderr"]:
+                          lines.append(f"- Error: {blast['stderr']}")
+                  else:
+                      payload = blast["payload"] or {}
+                      summary = payload.get("summary", {}) if isinstance(payload, dict) else {}
+                      lines.append(f"- Affected models: {summary.get('affected_models_count', 0)}")
+                      lines.append(f"- Affected columns: {summary.get('affected_columns_count', 0)}")
+                      affected_items = payload.get("affected_items", []) if isinstance(payload, dict) else []
+                      if affected_items:
+                          lines.append("- Downstream impacts:")
+                          for item in affected_items[:20]:
+                              if not isinstance(item, dict):
+                                  continue
+                              model = item.get("model", "")
+                              columns = item.get("columns", [])
+                              depth = item.get("depth", "unknown")
+                              column_text = ", ".join(columns) if isinstance(columns, list) and columns else "model-level impact"
+                              lines.append(f"  - {model} ({column_text}, depth {depth})")
+                  lines.append("")
+
+          body = "\n".join(lines).rstrip() + "\n"
+          comments_url = f"https://api.github.com/repos/{repository}/issues/{pr_number}/comments"
+          existing_comments = api("GET", comments_url, token)
+          existing = [c for c in existing_comments if COMMENT_MARKER in c.get("body", "")]
+
+          if existing:
+              api("PATCH", f"https://api.github.com/repos/{repository}/issues/comments/{existing[0]['id']}", token, {"body": body})
+              for stale in existing[1:]:
+                  api("DELETE", f"https://api.github.com/repos/{repository}/issues/comments/{stale['id']}", token)
+          else:
+              api("POST", comments_url, token, {"body": body})
+
+          print(json.dumps({"changed_files": len(changed_files), "changed_model_files": len(model_files), "blast_radius_requests": len(blast_results)}, indent=2))
+          PY
+        shell: bash
+        env:
+          PROFILE_NAME: ${{ inputs.dbt_profile_name }}
