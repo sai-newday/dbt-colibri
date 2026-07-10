@@ -1,201 +1,121 @@
+# dbt-colibri
 
-# Newday Column Lineage
+dbt-colibri is the shared lineage toolkit for Newday dbt projects.
+It generates column-level lineage, answers blast-radius questions, and powers the reusable PR comment workflow used by the dbt repos.
 
-Newday-specific CLI tooling and a self-hostable dashboard for extracting and visualizing **column-level lineage** from dbt projects.
+## What it does
 
-Built for internal data teams who need transparent lineage tracking for development, release reviews, and production change impact analysis.
+- Extracts column-level lineage from dbt artifacts
+- Generates a browsable HTML lineage dashboard
+- Merges artifacts across dbt projects
+- Validates cross-project lineage
+- Posts reusable PR blast-radius comments for dbt repos
 
-## Why Newday Column Lineage?
+## Key features
 
-- **Complete visibility**: Track how each column flows through dbt transformations
-- **Fast and lightweight**: Generate reports quickly from existing dbt artifacts
-- **Self-hosted**: Run fully within Newday environments
+- `colibri generate` for lineage reports
+- `colibri blast-radius` for downstream impact analysis
+- `colibri merge-artifacts` for multi-project lineage
+- `colibri publish-artifacts` to publish repo artifacts and regenerate the master catalog
+- `colibri validate-cross-project` for merged graph validation
+- Reusable GitHub workflow: `.github/workflows/dbt-model-change-comment.yml`
 
-## Quick Start
+## Example commands
 
-### Installation
-
-Install this project in your Newday Python environment from the internal source used by your team.
-
-### Basic Usage
-
-1. Run dbt to generate required artifacts:
-   ```bash
-   dbt compile
-   dbt docs generate
-   ```
-
-2. Generate lineage report:
-   ```bash
-   colibri generate
-   ```
-
-3. View results: open `dist/index.html` in your browser.
-
-You can also use `dbt run` or `dbt build` to generate `manifest.json`.
-
-## CLI Commands
-
-### `colibri generate`
-
-Generate column lineage reports from dbt artifacts.
+Generate a report:
 
 ```bash
-colibri generate [OPTIONS]
+colibri generate --manifest target/manifest.json --catalog target/catalog.json --output-dir dist
 ```
 
-Options:
-- `--manifest`: Path to dbt `manifest.json` (default: `target/manifest.json`)
-- `--catalog`: Path to dbt `catalog.json` (default: `target/catalog.json`)
-- `--output-dir`: Output directory (default: `dist/`)
-- `--light`: Excludes heavier attributes such as compiled SQL for large projects
+Expected output:
 
-### `colibri blast-radius`
-
-Analyze downstream impact of column changes in a model or source.
-
-```bash
-colibri blast-radius [OPTIONS]
+```text
+✅ Report completed!
+  📁 JSON: dist/colibri-manifest.json
+  🌐 HTML: dist/index.html
 ```
 
-Options:
-- `--model`: Fully qualified model/source ID (required)
-- `--columns`: Comma-separated column names; omit for model-level lineage
-- `--manifest`: Path to dbt `manifest.json` (default: `target/manifest.json`)
-- `--catalog`: Path to dbt `catalog.json` (default: `target/catalog.json`)
-- `--format`: `json` or `text` (default: `json`)
-- `--max-depth`: Maximum depth to traverse (default: unlimited)
-- `--debug`: Enable debug logging
-
-Example:
+Inspect blast radius:
 
 ```bash
 colibri blast-radius --model model.analytics.customers --columns customer_id --format json
 ```
 
-### `colibri resolve-model`
+Expected output:
 
-Resolve a short model/source table name to matching fully qualified IDs.
-
-```bash
-colibri resolve-model --name raw_customers [OPTIONS]
+```json
+{
+  "source_model": "model.analytics.customers",
+  "affected_items": [...],
+  "summary": {
+    "affected_models_count": 3,
+    "affected_columns_count": 5
+  }
+}
 ```
 
-Options:
-- `--name`: Short model/source table name to resolve (required)
-- `--manifest`: Path to dbt `manifest.json` (default: `target/manifest.json`)
-
-### `colibri merge-artifacts`
-
-Merge manifest/catalog files from multiple dbt projects.
+Merge multiple projects:
 
 ```bash
-colibri merge-artifacts [OPTIONS]
+colibri merge-artifacts --project-artifacts project_a target/manifest.json target/catalog.json --project-artifacts project_b target/manifest.json target/catalog.json --output-dir dist/_merged_artifacts
 ```
 
-Options:
-- `--project-artifacts`: Repeatable triple: `PROJECT MANIFEST_PATH CATALOG_PATH` (required)
-- `--output-dir`: Directory where merged artifacts are written (required)
-- `--no-strict`: Allow unresolved collisions without failing
-- `--link-cross-project-sources`: Rewrite cross-project sources to upstream models when available
-
-### `colibri validate-cross-project`
-
-Validate cross-project lineage in generated `colibri-manifest.json`.
-
-```bash
-colibri validate-cross-project --manifest dist/colibri-manifest.json [OPTIONS]
-```
-
-Options:
-- `--manifest`: Path to generated `colibri-manifest.json` (required)
-- `--format`: `text` or `json` (default: `text`)
-
-## Output Files
-
-- `colibri-manifest.json`: lineage data
-- `index.html`: interactive visualization dashboard
-
-## Project Structure
+Expected output:
 
 ```text
-your-dbt-project/
-|-- target/
-|   |-- manifest.json
-|   `-- catalog.json
-`-- dist/
-    |-- index.html
-    `-- colibri-manifest.json
+✅ Artifacts merged
+  📄 Manifest: dist/_merged_artifacts/manifest.json
+  📄 Catalog:  dist/_merged_artifacts/catalog.json
 ```
 
-## Multi-Project Usage
-
-1. Merge dbt artifacts from multiple projects.
-2. Generate HTML from merged artifacts.
-3. Validate cross-project lineage using generated output.
-
-Example paths in this repository:
-- `combined-lineage/dist/index.html`
-- `combined-lineage/dist/colibri-manifest.json`
-- `combined-lineage/dist/_merged_artifacts/manifest.json`
-- `combined-lineage/dist/_merged_artifacts/catalog.json`
-
-## CI/CD Integration
-
-Use the workflow example in [docs/github_pages_example.yml](docs/github_pages_example.yml) as a starting point for publishing generated static output.
-
-Typical pipeline flow:
-1. Install dependencies.
-2. Run `dbt compile` and `dbt docs generate`.
-3. Run `colibri generate`.
-4. Publish the `dist/` output.
-
-## Technical Details
-
-### Requirements
-
-- Python versions tested: 3.9, 3.11, 3.13
-- dbt-core versions tested: 1.8.x, 1.9.x, 1.10.x
-
-### Supported dbt Adapters
-
-- Snowflake
-- BigQuery
-- Redshift
-- duckDB
-- Postgres
-- Databricks (SQL models)
-- Athena
-- Trino
-- SQL Server (TSQL)
-- ClickHouse
-- Oracle
-- StarRocks
-
-### Architecture
-
-This project uses:
-- SQL parsing and lineage extraction
-- dbt artifacts (`manifest.json`, `catalog.json`) for metadata
-- static HTML output for simple deployment
-
-## Contributing
-
-Contributions are welcome through your team's normal development and review process.
-
-### Development Setup
+Publish repo artifacts and refresh the master catalog:
 
 ```bash
-# Install development dependencies
-uv sync --dev
-
-# Run tests
-pytest
-
-# Format code
-ruff format
+colibri publish-artifacts --repo-name jaffleshop --source-manifest target/manifest.json --source-catalog target/catalog.json --artifacts-root artifacts --branch artifacts-sync
 ```
 
-## License
+Expected output:
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE).
+```text
+✅ Published repo artifacts
+  📄 Repo manifest: artifacts/jaffleshop/manifest.json
+  📄 Repo catalog:   artifacts/jaffleshop/catalog.json
+  📄 Master manifest: artifacts/master/manifest.json
+  📄 Master catalog:  artifacts/master/catalog.json
+  ✅ Pushed artifacts branch: artifacts-sync
+```
+
+## PR workflow
+
+This repo exposes the reusable GitHub Actions workflow for dbt repos:
+
+`.github/workflows/dbt-model-change-comment.yml`
+
+It takes:
+
+- `dbt_profile_name`
+- `base_sha`
+- `head_sha`
+- `pr_number`
+
+## Published artifact branch
+
+dbt repos publish their latest `manifest.json` and `catalog.json` into the
+`artifacts-sync` branch under:
+
+- `artifacts/<repo-name>/manifest.json`
+- `artifacts/<repo-name>/catalog.json`
+- `artifacts/master/manifest.json`
+- `artifacts/master/catalog.json`
+
+The PR blast-radius workflow prefers `artifacts/master/*` and falls back to the
+legacy merged output if the published branch is not available yet.
+
+## Development
+
+```bash
+uv sync --dev
+pytest
+ruff format
+```
